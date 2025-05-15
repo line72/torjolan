@@ -9,9 +9,17 @@ import SwiftUI
 
 @main
 struct torjolanApp: App {
+    @State private var isLoggedIn = false
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            NavigationView {
+                if isLoggedIn {
+                    StationListView()
+                } else {
+                    LoginView(isLoggedIn: $isLoggedIn)
+                }
+            }
         }
     }
 }
