@@ -26,7 +26,7 @@ struct LoginView: View {
                         .padding(.horizontal)
                         .disabled(isLoggingIn)
                         .textInputAutocapitalization(.never)
-                        .textContentType(.username)
+                        .autocapitalization(.none)
                     
                     if let error = errorMessage {
                         Text(error)
@@ -62,8 +62,8 @@ struct LoginView: View {
         
         Task {
             do {
-                let user = try await APIService.shared.login(username: username)
-                User.current = user
+                let authResponse = try await APIService.shared.login(username: username)
+                User.current = User(from: authResponse)
                 withAnimation {
                     isLoggedIn = true
                 }

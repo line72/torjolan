@@ -58,7 +58,8 @@ struct StationListView: View {
         
         Task {
             do {
-                stations = try await APIService.shared.fetchStations()
+                let stationResponses = try await APIService.shared.fetchStations()
+                stations = stationResponses.map { Station(id: $0.id, name: $0.name, currentSong: nil) }
             } catch {
                 errorMessage = "Failed to load stations. Please try again."
             }
@@ -72,29 +73,22 @@ struct StationCard: View {
     
     var body: some View {
         ZStack(alignment: .bottom) {
-            if let url = station.artworkURL {
-                AsyncImage(url: url) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Color.gray
-                }
-            } else {
-                Color.gray
-                Image(systemName: "radio")
-                    .font(.system(size: 40))
-                    .foregroundColor(.white)
-            }
+            Color.gray
+            Image(systemName: "radio")
+                .font(.system(size: 40))
+                .foregroundColor(.white)
             
             VStack(alignment: .leading) {
                 Text(station.name)
                     .font(.headline)
                     .foregroundColor(.white)
-                Text(station.description)
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.9))
-                    .lineLimit(2)
+                
+                if let song = station.currentSong {
+                    Text("\(song.title) - \(song.artist)")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.9))
+                        .lineLimit(2)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()

@@ -1,15 +1,14 @@
 import Foundation
 
 struct Station: Identifiable, Codable {
-    let id: String
+    let id: Int
     let name: String
-    let description: String
-    let artworkURL: URL?
+    
+    // These will be populated from stream response
+    var currentSong: Song?
     
     enum CodingKeys: String, CodingKey {
         case id
         case name
-        case description
-        case artworkURL = "artwork_url"
     }
 } 

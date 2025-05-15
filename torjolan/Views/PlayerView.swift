@@ -9,7 +9,8 @@ class AudioPlayer: ObservableObject {
     @Published var currentTime: TimeInterval = 0
     private var timeObserver: Any?
     
-    func play(url: URL) {
+    func play(url: String) {
+        guard let url = URL(string: url) else { return }
         stop()
         let playerItem = AVPlayerItem(url: url)
         player = AVPlayer(playerItem: playerItem)
@@ -61,8 +62,8 @@ struct PlayerView: View {
                 VStack(spacing: 20) {
                     // Cover Art
                     Group {
-                        if let url = currentSong?.artworkURL {
-                            AsyncImage(url: url) { image in
+                        if let coverUrl = currentSong?.cover_url {
+                            AsyncImage(url: URL(string: coverUrl)) { image in
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fit)
@@ -101,17 +102,11 @@ struct PlayerView: View {
                     }
                     .padding(.horizontal)
                     
-                    // Progress Bar
-                    if let duration = currentSong?.duration {
-                        ProgressView(value: audioPlayer.currentTime, total: duration)
-                            .padding(.horizontal)
-                    }
-                    
                     // Controls
                     HStack(spacing: 40) {
                         Button(action: {
                             Task {
-                                try? await rateSong(isLike: false)
+                                try? await thumbsDown()
                             }
                         }) {
                             Image(systemName: "hand.thumbsdown")
@@ -128,7 +123,7 @@ struct PlayerView: View {
                         
                         Button(action: {
                             Task {
-                                try? await rateSong(isLike: true)
+                                try? await thumbsUp()
                             }
                         }) {
                             Image(systemName: "hand.thumbsup")
@@ -164,9 +159,13 @@ struct PlayerView: View {
         
         Task {
             do {
-                let song = try await APIService.shared.fetchCurrentSong(stationId: station.id)
+                let streamResponse = try await APIService.shared.getStationStream(stationId: station.id)
                 await MainActor.run {
+                    let song = Song(from: streamResponse)
                     currentSong = song
+                    if !audioPlayer.isPlaying {
+                        audioPlayer.play(url: streamResponse.url)
+                    }
                     isLoading = false
                 }
             } catch {
@@ -178,20 +177,29 @@ struct PlayerView: View {
         }
     }
     
-    private func rateSong(isLike: Bool) async throws {
+    private func thumbsUp() async throws {
         guard let song = currentSong else { return }
-        try await APIService.shared.rateSong(songId: song.id, isLike: isLike)
-        // Optionally update the UI to show the rating was successful
+        let success = try await APIService.shared.thumbsUp(stationId: station.id, songId: song.id)
+        if success {
+            // Optionally update the UI to show the rating was successful
+        }
+    }
+    
+    private func thumbsDown() async throws {
+        guard let song = currentSong else { return }
+        let success = try await APIService.shared.thumbsDown(stationId: station.id, songId: song.id)
+        if success {
+            // Optionally update the UI to show the rating was successful
+        }
     }
 }
 
 #Preview {
     NavigationView {
         PlayerView(station: Station(
-            id: "1",
+            id: 1,
             name: "Test Station",
-            description: "A test station",
-            artworkURL: nil
+            currentSong: nil
         ))
     }
 } 
