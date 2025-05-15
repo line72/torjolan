@@ -1,0 +1,10 @@
+// Network Security Settings
+"NSAppTransportSecurity" = {
+    "NSAllowsLocalNetworking" = YES;
+    "NSExceptionDomains" = {
+        "line72.net" = {
+            "NSIncludesSubdomains" = YES;
+            "NSExceptionMinimumTLSVersion" = "TLSv1.2";
+        };
+    };
+}; 
