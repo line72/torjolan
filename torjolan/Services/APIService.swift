@@ -42,10 +42,16 @@ enum APIError: Error {
 
 class APIService {
     static let shared = APIService()
-    private let baseURL = "https://api.example.com" // Replace with your actual API base URL
+    private var baseURL: String
     private var authToken: String?
     
-    private init() {}
+    private init() {
+        self.baseURL = "https://api.example.com" // Default value
+    }
+    
+    static func configure(baseURL: String) {
+        shared.baseURL = baseURL
+    }
     
     private func authorizedRequest(_ url: URL) -> URLRequest {
         var request = URLRequest(url: url)

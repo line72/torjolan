@@ -11,6 +11,14 @@ import SwiftUI
 struct torjolanApp: App {
     @State private var isLoggedIn = false
     
+    init() {
+        #if DEBUG
+        APIService.configure(baseURL: "https://pandora.line72.net") // Development server
+        #else
+        APIService.configure(baseURL: "https://pandora.line72.net") // Production server
+        #endif
+    }
+    
     var body: some Scene {
         WindowGroup {
             NavigationView {
