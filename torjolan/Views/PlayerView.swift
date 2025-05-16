@@ -381,7 +381,10 @@ struct PlayerView: View {
         guard let song = audioPlayer.currentSong else { return }
         let success = try await APIService.shared.thumbsDown(stationId: station.id, songId: song.id)
         if success {
-            // Optionally update the UI to show the rating was successful
+            // Stop current playback
+            audioPlayer.stop()
+            // Start playing next song
+            audioPlayer.startPlayingStation(station)
         }
     }
     
