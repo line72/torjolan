@@ -169,8 +169,9 @@ struct PlayerView: View {
                     isLoading = false
                 }
             } catch {
+                print("Detailed error: \(error)")
                 await MainActor.run {
-                    errorMessage = "Failed to fetch current song"
+                    errorMessage = "\(error)"
                     isLoading = false
                 }
             }

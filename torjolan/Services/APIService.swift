@@ -139,7 +139,7 @@ class APIService {
     }
     
     func getStationStream(stationId: Int) async throws -> StreamResponse {
-        guard let url = URL(string: "\(baseURL)/api/stations/\(stationId)") else {
+        guard let url = URL(string: "\(baseURL)/api/station/\(stationId)") else {
             throw APIError.invalidURL
         }
         
@@ -147,11 +147,22 @@ class APIService {
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 401 {
+        guard let httpResponse = response as? HTTPURLResponse else {
+            print("Response is not HTTPURLResponse")
+            throw APIError.invalidResponse
+        }
+        
+        // Print response details
+        print("Response status code: \(httpResponse.statusCode)")
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("Response body: \(responseString)")
+        }
+        
+        guard (200...299).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 401 {
                 throw APIError.unauthorized
             }
+            print("Invalid response status: \(httpResponse.statusCode)")
             throw APIError.invalidResponse
         }
         
