@@ -13,6 +13,7 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
     private var currentStation: Station?
     @Published var duration: TimeInterval = 0
     private var timeUpdateTimer: Timer?
+    @Published var isThumbedUp = false
     
     override init() {
         super.init()
@@ -154,6 +155,7 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         stop()
         
         currentSong = song
+        isThumbedUp = false  // Reset thumbs up state for new song
         let media = VLCMedia(url: audioURL)
         player?.media = media
         print("✓ Created VLCMedia with URL")
@@ -225,6 +227,7 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         currentTime = 0
         duration = 0
         currentSong = nil
+        isThumbedUp = false  // Reset thumbs up state when stopping
         
         // Clear now playing info when stopping
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
@@ -345,7 +348,7 @@ struct PlayerView: View {
                                 try? await thumbsUp()
                             }
                         }) {
-                            Image(systemName: "hand.thumbsup")
+                            Image(systemName: audioPlayer.isThumbedUp ? "hand.thumbsup.fill" : "hand.thumbsup")
                                 .font(.title)
                                 .foregroundColor(.green)
                         }
@@ -373,7 +376,7 @@ struct PlayerView: View {
         guard let song = audioPlayer.currentSong else { return }
         let success = try await APIService.shared.thumbsUp(stationId: station.id, songId: song.id)
         if success {
-            // Optionally update the UI to show the rating was successful
+            audioPlayer.isThumbedUp = true
         }
     }
     
