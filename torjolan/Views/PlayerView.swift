@@ -8,6 +8,8 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
     private var player: VLCMediaPlayer?
     @Published var isPlaying = false
     @Published var currentTime: TimeInterval = 0
+    @Published var currentSong: Song?
+    private var currentStation: Station?
     
     override init() {
         super.init()
@@ -30,7 +32,29 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         player?.audio?.volume = 100
     }
     
-    func play(url: String) {
+    func startPlayingStation(_ station: Station) {
+        currentStation = station
+        Task {
+            await fetchAndPlayNextSong()
+        }
+    }
+    
+    private func fetchAndPlayNextSong() async {
+        guard let station = currentStation else { return }
+        
+        do {
+            let streamResponse = try await APIService.shared.getStationStream(stationId: station.id)
+            let song = Song(from: streamResponse)
+            
+            await MainActor.run {
+                play(url: streamResponse.url, song: song)
+            }
+        } catch {
+            print("Failed to fetch next song: \(error)")
+        }
+    }
+    
+    func play(url: String, song: Song) {
         print("Attempting to play URL: \(url)")
         
         guard let audioURL = URL(string: url) else {
@@ -40,6 +64,7 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         
         stop()
         
+        currentSong = song
         let media = VLCMedia(url: audioURL)
         player?.media = media
         print("✓ Created VLCMedia with URL")
@@ -59,9 +84,26 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         case .error:
             print("❌ Player encountered an error")
             isPlaying = false
+            Task {
+                await fetchAndPlayNextSong()
+            }
         case .ended:
             print("✓ Media playback ended")
             isPlaying = false
+            Task {
+                if let song = currentSong, let station = currentStation {
+                    do {
+                        // Submit the completed song
+                        let success = try await APIService.shared.submitSongCompletion(stationId: station.id, songId: song.id)
+                        if success {
+                            print("✓ Successfully submitted song completion")
+                        }
+                    } catch {
+                        print("Failed to submit song completion: \(error)")
+                    }
+                }
+                await fetchAndPlayNextSong()
+            }
         default:
             break
         }
@@ -83,19 +125,16 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         player?.stop()
         isPlaying = false
         currentTime = 0
+        currentSong = nil
     }
 }
 
 struct PlayerView: View {
     let station: Station
     @StateObject private var audioPlayer = AudioPlayer.shared
-    @State private var currentSong: Song?
     @State private var isLoading = false
     @State private var errorMessage: String?
-    @State private var userPaused = false
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
-    
-    private let timer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
     
     var body: some View {
         GeometryReader { geometry in
@@ -103,7 +142,7 @@ struct PlayerView: View {
                 VStack(spacing: 20) {
                     // Cover Art
                     Group {
-                        if let coverUrl = currentSong?.cover_url {
+                        if let coverUrl = audioPlayer.currentSong?.cover_url {
                             AsyncImage(url: URL(string: coverUrl)) { image in
                                 image
                                     .resizable()
@@ -128,14 +167,14 @@ struct PlayerView: View {
                     
                     // Song Info
                     VStack(spacing: 8) {
-                        Text(currentSong?.title ?? "Loading...")
+                        Text(audioPlayer.currentSong?.title ?? "Loading...")
                             .font(.title2)
                             .bold()
-                        Text(currentSong?.artist ?? "")
+                        Text(audioPlayer.currentSong?.artist ?? "")
                             .font(.title3)
                             .foregroundColor(.secondary)
                         
-                        if let album = currentSong?.album {
+                        if let album = audioPlayer.currentSong?.album {
                             Text(album)
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
@@ -156,7 +195,6 @@ struct PlayerView: View {
                         }
                         
                         Button(action: {
-                            userPaused.toggle()
                             audioPlayer.togglePlayPause()
                         }) {
                             Image(systemName: audioPlayer.isPlaying ? "pause.circle.fill" : "play.circle.fill")
@@ -179,10 +217,7 @@ struct PlayerView: View {
         }
         .navigationTitle(station.name)
         .onAppear {
-            fetchCurrentSong()
-        }
-        .onReceive(timer) { _ in
-            fetchCurrentSong()
+            audioPlayer.startPlayingStation(station)
         }
         .alert("Error", isPresented: .constant(errorMessage != nil)) {
             Button("OK") {
@@ -195,33 +230,8 @@ struct PlayerView: View {
         }
     }
     
-    private func fetchCurrentSong() {
-        guard !isLoading else { return }
-        isLoading = true
-        
-        Task {
-            do {
-                let streamResponse = try await APIService.shared.getStationStream(stationId: station.id)
-                await MainActor.run {
-                    let song = Song(from: streamResponse)
-                    currentSong = song
-                    if !audioPlayer.isPlaying && !userPaused {
-                        audioPlayer.play(url: streamResponse.url)
-                    }
-                    isLoading = false
-                }
-            } catch {
-                print("Detailed error: \(error)")
-                await MainActor.run {
-                    errorMessage = "\(error)"
-                    isLoading = false
-                }
-            }
-        }
-    }
-    
     private func thumbsUp() async throws {
-        guard let song = currentSong else { return }
+        guard let song = audioPlayer.currentSong else { return }
         let success = try await APIService.shared.thumbsUp(stationId: station.id, songId: song.id)
         if success {
             // Optionally update the UI to show the rating was successful
@@ -229,7 +239,7 @@ struct PlayerView: View {
     }
     
     private func thumbsDown() async throws {
-        guard let song = currentSong else { return }
+        guard let song = audioPlayer.currentSong else { return }
         let success = try await APIService.shared.thumbsDown(stationId: station.id, songId: song.id)
         if success {
             // Optionally update the UI to show the rating was successful

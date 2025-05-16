@@ -7,9 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		D98A37757E5093FD935EAA03 /* Pods_torjolanTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 642CAA76E71CE11C1421BB2F /* Pods_torjolanTests.framework */; };
+		01C8FD36B4AF361A8D7AE84D /* Pods_torjolan_torjolanUITests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F905902503F80EC74B85833D /* Pods_torjolan_torjolanUITests.framework */; };
+		41EB4DDBF127767893127362 /* Pods_torjolan_torjolanTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 159A80D5F5AF66EFEC40A197 /* Pods_torjolan_torjolanTests.framework */; };
 		DB4EBF35BA855826F9EC28FB /* Pods_torjolan.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B87C14B27C0B4D45E9691117 /* Pods_torjolan.framework */; };
-		F5ADD39909AABDFD06B6CED2 /* Pods_torjolanUITests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4E593329D0765BC0C0C48EF9 /* Pods_torjolanUITests.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -31,17 +31,21 @@
 
 /* Begin PBXFileReference section */
 		05EEAEF023DF1DD2EEB8B9B7 /* Pods-torjolan.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-torjolan.debug.xcconfig"; path = "Target Support Files/Pods-torjolan/Pods-torjolan.debug.xcconfig"; sourceTree = "<group>"; };
+		159A80D5F5AF66EFEC40A197 /* Pods_torjolan_torjolanTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_torjolan_torjolanTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		1A75774BC7EF25A46AB7ECE0 /* Pods-torjolanUITests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-torjolanUITests.release.xcconfig"; path = "Target Support Files/Pods-torjolanUITests/Pods-torjolanUITests.release.xcconfig"; sourceTree = "<group>"; };
-		4E593329D0765BC0C0C48EF9 /* Pods_torjolanUITests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_torjolanUITests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		42134D86729945F59BA8C85E /* Pods-torjolan-torjolanTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-torjolan-torjolanTests.debug.xcconfig"; path = "Target Support Files/Pods-torjolan-torjolanTests/Pods-torjolan-torjolanTests.debug.xcconfig"; sourceTree = "<group>"; };
 		5A6F676EEDA738C2F0513F0A /* Pods-torjolanTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-torjolanTests.debug.xcconfig"; path = "Target Support Files/Pods-torjolanTests/Pods-torjolanTests.debug.xcconfig"; sourceTree = "<group>"; };
-		642CAA76E71CE11C1421BB2F /* Pods_torjolanTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_torjolanTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		69B66B5694E8D004396BE29F /* Pods-torjolanTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-torjolanTests.release.xcconfig"; path = "Target Support Files/Pods-torjolanTests/Pods-torjolanTests.release.xcconfig"; sourceTree = "<group>"; };
 		867D097283147186AC84EA4E /* Pods-torjolan.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-torjolan.release.xcconfig"; path = "Target Support Files/Pods-torjolan/Pods-torjolan.release.xcconfig"; sourceTree = "<group>"; };
+		9AE03BEA9E0C7618447022ED /* Pods-torjolan-torjolanUITests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-torjolan-torjolanUITests.release.xcconfig"; path = "Target Support Files/Pods-torjolan-torjolanUITests/Pods-torjolan-torjolanUITests.release.xcconfig"; sourceTree = "<group>"; };
 		A2CD92830B97D93375669040 /* Pods-torjolanUITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-torjolanUITests.debug.xcconfig"; path = "Target Support Files/Pods-torjolanUITests/Pods-torjolanUITests.debug.xcconfig"; sourceTree = "<group>"; };
 		B87C14B27C0B4D45E9691117 /* Pods_torjolan.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_torjolan.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		C1EF1539F1D47F484541ECBD /* Pods-torjolan-torjolanTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-torjolan-torjolanTests.release.xcconfig"; path = "Target Support Files/Pods-torjolan-torjolanTests/Pods-torjolan-torjolanTests.release.xcconfig"; sourceTree = "<group>"; };
 		C51D7C922DD69BEC00E6D5EF /* torjolan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = torjolan.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C51D7CA02DD69BEE00E6D5EF /* torjolanTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = torjolanTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C51D7CAA2DD69BEE00E6D5EF /* torjolanUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = torjolanUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E8FFA61A6F3026CD3891834E /* Pods-torjolan-torjolanUITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-torjolan-torjolanUITests.debug.xcconfig"; path = "Target Support Files/Pods-torjolan-torjolanUITests/Pods-torjolan-torjolanUITests.debug.xcconfig"; sourceTree = "<group>"; };
+		F905902503F80EC74B85833D /* Pods_torjolan_torjolanUITests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_torjolan_torjolanUITests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -75,7 +79,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D98A37757E5093FD935EAA03 /* Pods_torjolanTests.framework in Frameworks */,
+				41EB4DDBF127767893127362 /* Pods_torjolan_torjolanTests.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -83,7 +87,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F5ADD39909AABDFD06B6CED2 /* Pods_torjolanUITests.framework in Frameworks */,
+				01C8FD36B4AF361A8D7AE84D /* Pods_torjolan_torjolanUITests.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -99,6 +103,10 @@
 				69B66B5694E8D004396BE29F /* Pods-torjolanTests.release.xcconfig */,
 				A2CD92830B97D93375669040 /* Pods-torjolanUITests.debug.xcconfig */,
 				1A75774BC7EF25A46AB7ECE0 /* Pods-torjolanUITests.release.xcconfig */,
+				42134D86729945F59BA8C85E /* Pods-torjolan-torjolanTests.debug.xcconfig */,
+				C1EF1539F1D47F484541ECBD /* Pods-torjolan-torjolanTests.release.xcconfig */,
+				E8FFA61A6F3026CD3891834E /* Pods-torjolan-torjolanUITests.debug.xcconfig */,
+				9AE03BEA9E0C7618447022ED /* Pods-torjolan-torjolanUITests.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -129,8 +137,8 @@
 			isa = PBXGroup;
 			children = (
 				B87C14B27C0B4D45E9691117 /* Pods_torjolan.framework */,
-				642CAA76E71CE11C1421BB2F /* Pods_torjolanTests.framework */,
-				4E593329D0765BC0C0C48EF9 /* Pods_torjolanUITests.framework */,
+				159A80D5F5AF66EFEC40A197 /* Pods_torjolan_torjolanTests.framework */,
+				F905902503F80EC74B85833D /* Pods_torjolan_torjolanUITests.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -168,6 +176,7 @@
 				C51D7C9C2DD69BEE00E6D5EF /* Sources */,
 				C51D7C9D2DD69BEE00E6D5EF /* Frameworks */,
 				C51D7C9E2DD69BEE00E6D5EF /* Resources */,
+				573BCFF639B1AC269C482A16 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -190,6 +199,7 @@
 				C51D7CA62DD69BEE00E6D5EF /* Sources */,
 				C51D7CA72DD69BEE00E6D5EF /* Frameworks */,
 				C51D7CA82DD69BEE00E6D5EF /* Resources */,
+				3F3612AF355EC8A185A4203B /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -294,6 +304,48 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-torjolan/Pods-torjolan-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
+		3F3612AF355EC8A185A4203B /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-torjolan-torjolanUITests/Pods-torjolan-torjolanUITests-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			inputPaths = (
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-torjolan-torjolanUITests/Pods-torjolan-torjolanUITests-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-torjolan-torjolanUITests/Pods-torjolan-torjolanUITests-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		573BCFF639B1AC269C482A16 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-torjolan-torjolanTests/Pods-torjolan-torjolanTests-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			inputPaths = (
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-torjolan-torjolanTests/Pods-torjolan-torjolanTests-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-torjolan-torjolanTests/Pods-torjolan-torjolanTests-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
 		7A8D02EF74311BF1B7E327EF /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -309,7 +361,7 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-torjolanUITests-checkManifestLockResult.txt",
+				"$(DERIVED_FILE_DIR)/Pods-torjolan-torjolanUITests-checkManifestLockResult.txt",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -353,7 +405,7 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-torjolanTests-checkManifestLockResult.txt",
+				"$(DERIVED_FILE_DIR)/Pods-torjolan-torjolanTests-checkManifestLockResult.txt",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -434,6 +486,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = RJAK2J4R9E;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -496,6 +549,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = RJAK2J4R9E;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -529,6 +583,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "";
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
 				INFOPLIST_KEY_NSAppTransportSecurity_NSExceptionDomains_line72.net_NSExceptionMinimumTLSVersion = TLSv1.2;
 				INFOPLIST_KEY_NSAppTransportSecurity_NSExceptionDomains_line72.net_NSIncludesSubdomains = YES;
@@ -572,6 +627,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "";
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
 				INFOPLIST_KEY_NSAppTransportSecurity_NSExceptionDomains_line72.net_NSExceptionMinimumTLSVersion = TLSv1.2;
 				INFOPLIST_KEY_NSAppTransportSecurity_NSExceptionDomains_line72.net_NSIncludesSubdomains = YES;
@@ -604,11 +660,12 @@
 		};
 		C51D7CB82DD69BEE00E6D5EF /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 5A6F676EEDA738C2F0513F0A /* Pods-torjolanTests.debug.xcconfig */;
+			baseConfigurationReference = 42134D86729945F59BA8C85E /* Pods-torjolan-torjolanTests.debug.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = RJAK2J4R9E;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
@@ -628,11 +685,12 @@
 		};
 		C51D7CB92DD69BEE00E6D5EF /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 69B66B5694E8D004396BE29F /* Pods-torjolanTests.release.xcconfig */;
+			baseConfigurationReference = C1EF1539F1D47F484541ECBD /* Pods-torjolan-torjolanTests.release.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = RJAK2J4R9E;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
@@ -652,10 +710,11 @@
 		};
 		C51D7CBB2DD69BEE00E6D5EF /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = A2CD92830B97D93375669040 /* Pods-torjolanUITests.debug.xcconfig */;
+			baseConfigurationReference = E8FFA61A6F3026CD3891834E /* Pods-torjolan-torjolanUITests.debug.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = RJAK2J4R9E;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
@@ -675,10 +734,11 @@
 		};
 		C51D7CBC2DD69BEE00E6D5EF /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 1A75774BC7EF25A46AB7ECE0 /* Pods-torjolanUITests.release.xcconfig */;
+			baseConfigurationReference = 9AE03BEA9E0C7618447022ED /* Pods-torjolan-torjolanUITests.release.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = RJAK2J4R9E;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
