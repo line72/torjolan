@@ -2,6 +2,7 @@ import SwiftUI
 import MobileVLCKit
 import UIKit
 import AVFoundation
+import MediaPlayer
 
 class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
     static let shared = AudioPlayer()
@@ -15,6 +16,7 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         super.init()
         setupAudioSession()
         setupPlayer()
+        setupRemoteTransportControls()
     }
     
     private func setupAudioSession() {
@@ -30,6 +32,60 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         player = VLCMediaPlayer()
         player?.delegate = self
         player?.audio?.volume = 100
+    }
+    
+    private func setupRemoteTransportControls() {
+        let commandCenter = MPRemoteCommandCenter.shared()
+        
+        // Enable play/pause commands
+        commandCenter.playCommand.addTarget { [weak self] event in
+            self?.player?.play()
+            self?.isPlaying = true
+            return .success
+        }
+        
+        commandCenter.pauseCommand.addTarget { [weak self] event in
+            self?.player?.pause()
+            self?.isPlaying = false
+            return .success
+        }
+        
+        // Disable next/previous track commands
+        commandCenter.nextTrackCommand.isEnabled = false
+        commandCenter.previousTrackCommand.isEnabled = false
+    }
+    
+    private func updateNowPlayingInfo(for song: Song) {
+        var nowPlayingInfo: [String: Any] = [
+            MPMediaItemPropertyTitle: song.title,
+            MPMediaItemPropertyArtist: song.artist,
+            MPMediaItemPropertyAlbumTitle: song.album,
+            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0,
+        ]
+        
+        // Load album artwork asynchronously if available
+        if let coverUrlString = song.cover_url, let coverUrl = URL(string: coverUrlString) {
+            Task {
+                do {
+                    let (data, _) = try await URLSession.shared.data(from: coverUrl)
+                    if let image = UIImage(data: data) {
+                        let artwork = MPMediaItemArtwork(boundsSize: image.size) { size in
+                            return image
+                        }
+                        nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
+                        // Update the now playing info on the main thread
+                        await MainActor.run {
+                            MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+                        }
+                    }
+                } catch {
+                    print("Failed to load artwork: \(error)")
+                }
+            }
+        }
+        
+        // Set the info immediately, artwork will be updated asynchronously
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
     }
     
     func startPlayingStation(_ station: Station) {
@@ -72,6 +128,9 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         player?.play()
         isPlaying = true
         print("▶️ Started playback")
+        
+        // Update now playing info
+        updateNowPlayingInfo(for: song)
     }
     
     func mediaPlayerStateChanged(_ aNotification: Notification) {
@@ -118,6 +177,12 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
             player?.play()
         }
         isPlaying.toggle()
+        
+        // Update playback rate in now playing info
+        if var nowPlayingInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo {
+            nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+        }
     }
     
     func stop() {
@@ -126,6 +191,9 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         isPlaying = false
         currentTime = 0
         currentSong = nil
+        
+        // Clear now playing info when stopping
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
 }
 
