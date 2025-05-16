@@ -1,6 +1,7 @@
 import SwiftUI
 import MobileVLCKit
 import UIKit
+import AVFoundation
 
 class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
     static let shared = AudioPlayer()
@@ -10,7 +11,17 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
     
     override init() {
         super.init()
+        setupAudioSession()
         setupPlayer()
+    }
+    
+    private func setupAudioSession() {
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("❌ Failed to setup audio session: \(error)")
+        }
     }
     
     private func setupPlayer() {
