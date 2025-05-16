@@ -92,6 +92,7 @@ struct PlayerView: View {
     @State private var currentSong: Song?
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var userPaused = false
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     
     private let timer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
@@ -155,6 +156,7 @@ struct PlayerView: View {
                         }
                         
                         Button(action: {
+                            userPaused.toggle()
                             audioPlayer.togglePlayPause()
                         }) {
                             Image(systemName: audioPlayer.isPlaying ? "pause.circle.fill" : "play.circle.fill")
@@ -203,7 +205,7 @@ struct PlayerView: View {
                 await MainActor.run {
                     let song = Song(from: streamResponse)
                     currentSong = song
-                    if !audioPlayer.isPlaying {
+                    if !audioPlayer.isPlaying && !userPaused {
                         audioPlayer.play(url: streamResponse.url)
                     }
                     isLoading = false
