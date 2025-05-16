@@ -14,7 +14,7 @@ struct LoginView: View {
                 Spacer()
                 
                 // Logo/App Title
-                Text("Torjolan")
+                Text("Tor Jolan")
                     .font(.system(size: 40, weight: .bold))
                     .foregroundColor(.primary)
                 
