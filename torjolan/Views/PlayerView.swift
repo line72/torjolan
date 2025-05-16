@@ -11,12 +11,15 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
     @Published var currentTime: TimeInterval = 0
     @Published var currentSong: Song?
     private var currentStation: Station?
+    @Published var duration: TimeInterval = 0
+    private var timeUpdateTimer: Timer?
     
     override init() {
         super.init()
         setupAudioSession()
         setupPlayer()
         setupRemoteTransportControls()
+        setupTimeUpdates()
     }
     
     private func setupAudioSession() {
@@ -55,12 +58,42 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         commandCenter.previousTrackCommand.isEnabled = false
     }
     
+    private func setupTimeUpdates() {
+        // Create a timer that updates every 0.5 seconds
+        timeUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            guard let self = self, let player = self.player else { return }
+            self.currentTime = TimeInterval(player.time.intValue) / 1000.0 // VLC time is in milliseconds
+            self.duration = TimeInterval(player.media?.length.intValue ?? 0) / 1000.0
+            
+            // Update lock screen progress
+            if var nowPlayingInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo {
+                nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = self.currentTime
+                nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = self.duration
+                MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+            }
+        }
+    }
+    
+    func seek(to time: TimeInterval) {
+        guard let player = player else { return }
+        // VLC expects time in milliseconds
+        player.time = VLCTime(int: Int32(time * 1000))
+        
+        // Update lock screen progress
+        if var nowPlayingInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo {
+            nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = time
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+        }
+    }
+    
     private func updateNowPlayingInfo(for song: Song) {
         var nowPlayingInfo: [String: Any] = [
             MPMediaItemPropertyTitle: song.title,
             MPMediaItemPropertyArtist: song.artist,
             MPMediaItemPropertyAlbumTitle: song.album,
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0,
+            MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
+            MPMediaItemPropertyPlaybackDuration: duration
         ]
         
         // Load album artwork asynchronously if available
@@ -190,10 +223,15 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         player?.stop()
         isPlaying = false
         currentTime = 0
+        duration = 0
         currentSong = nil
         
         // Clear now playing info when stopping
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+    }
+    
+    deinit {
+        timeUpdateTimer?.invalidate()
     }
 }
 
@@ -203,6 +241,8 @@ struct PlayerView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    @State private var isSeeking = false
+    @State private var seekTime: TimeInterval = 0
     
     var body: some View {
         GeometryReader { geometry in
@@ -246,6 +286,37 @@ struct PlayerView: View {
                             Text(album)
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.horizontal)
+                    
+                    // Time Slider
+                    VStack(spacing: 4) {
+                        Slider(
+                            value: Binding(
+                                get: { isSeeking ? seekTime : audioPlayer.currentTime },
+                                set: { newValue in
+                                    isSeeking = true
+                                    seekTime = newValue
+                                }
+                            ),
+                            in: 0...max(audioPlayer.duration, 1)
+                        ) { editing in
+                            if !editing && isSeeking {
+                                audioPlayer.seek(to: seekTime)
+                                isSeeking = false
+                            }
+                        }
+                        .disabled(audioPlayer.duration == 0)
+                        
+                        HStack {
+                            Text(formatTime(audioPlayer.currentTime))
+                                .font(.caption)
+                                .monospacedDigit()
+                            Spacer()
+                            Text(formatTime(audioPlayer.duration))
+                                .font(.caption)
+                                .monospacedDigit()
                         }
                     }
                     .padding(.horizontal)
@@ -312,6 +383,12 @@ struct PlayerView: View {
         if success {
             // Optionally update the UI to show the rating was successful
         }
+    }
+    
+    private func formatTime(_ time: TimeInterval) -> String {
+        let minutes = Int(time) / 60
+        let seconds = Int(time) % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 }
 
