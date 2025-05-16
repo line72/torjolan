@@ -1,13 +1,23 @@
 import SwiftUI
-import AVFoundation
+import MobileVLCKit
 import UIKit
 
-class AudioPlayer: NSObject, ObservableObject {
+class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
     static let shared = AudioPlayer()
-    private var player: AVPlayer?
+    private var player: VLCMediaPlayer?
     @Published var isPlaying = false
     @Published var currentTime: TimeInterval = 0
-    private var timeObserver: Any?
+    
+    override init() {
+        super.init()
+        setupPlayer()
+    }
+    
+    private func setupPlayer() {
+        player = VLCMediaPlayer()
+        player?.delegate = self
+        player?.audio?.volume = 100
+    }
     
     func play(url: String) {
         print("Attempting to play URL: \(url)")
@@ -18,68 +28,31 @@ class AudioPlayer: NSObject, ObservableObject {
         }
         
         stop()
-        let playerItem = AVPlayerItem(url: audioURL)
         
-        // Add error handling for the player item
-        NotificationCenter.default.addObserver(self,
-                                             selector: #selector(playerItemDidFailToPlay),
-                                             name: .AVPlayerItemFailedToPlayToEndTime,
-                                             object: playerItem)
-        
-        // Add status observation
-        playerItem.addObserver(self,
-                             forKeyPath: #keyPath(AVPlayerItem.status),
-                             options: [.old, .new],
-                             context: nil)
-        
-        player = AVPlayer(playerItem: playerItem)
-        print("✓ Created AVPlayer with item")
-        
-        timeObserver = player?.addPeriodicTimeObserver(
-            forInterval: CMTime(seconds: 1, preferredTimescale: 1),
-            queue: .main
-        ) { [weak self] time in
-            self?.currentTime = time.seconds
-            print("Current playback time: \(time.seconds)")
-        }
+        let media = VLCMedia(url: audioURL)
+        player?.media = media
+        print("✓ Created VLCMedia with URL")
         
         player?.play()
         isPlaying = true
         print("▶️ Started playback")
     }
     
-    override func observeValue(forKeyPath keyPath: String?,
-                             of object: Any?,
-                             change: [NSKeyValueChangeKey : Any]?,
-                             context: UnsafeMutableRawPointer?) {
-        if keyPath == #keyPath(AVPlayerItem.status) {
-            let status: AVPlayerItem.Status
-            
-            if let statusNumber = change?[.newKey] as? NSNumber {
-                status = AVPlayerItem.Status(rawValue: statusNumber.intValue)!
-            } else {
-                status = .unknown
-            }
-            
-            // Handle the status change
-            switch status {
-            case .readyToPlay:
-                print("✓ Player item is ready to play")
-            case .failed:
-                if let error = (object as? AVPlayerItem)?.error {
-                    print("❌ Player item failed with error: \(error)")
-                }
-            case .unknown:
-                print("⚠️ Player item status is unknown")
-            @unknown default:
-                print("⚠️ Player item has unhandled status")
-            }
-        }
-    }
-    
-    @objc private func playerItemDidFailToPlay(_ notification: Notification) {
-        if let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error {
-            print("❌ Playback failed with error: \(error)")
+    func mediaPlayerStateChanged(_ aNotification: Notification) {
+        guard let player = player else { return }
+        
+        switch player.state {
+        case .playing:
+            print("✓ Media is playing")
+            isPlaying = true
+        case .error:
+            print("❌ Player encountered an error")
+            isPlaying = false
+        case .ended:
+            print("✓ Media playback ended")
+            isPlaying = false
+        default:
+            break
         }
     }
     
@@ -96,17 +69,9 @@ class AudioPlayer: NSObject, ObservableObject {
     
     func stop() {
         print("⏹️ Stopping playback")
-        player?.pause()
-        if let observer = timeObserver {
-            player?.removeTimeObserver(observer)
-        }
-        player = nil
+        player?.stop()
         isPlaying = false
         currentTime = 0
-    }
-    
-    deinit {
-        NotificationCenter.default.removeObserver(self)
     }
 }
 
