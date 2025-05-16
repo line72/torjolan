@@ -2,7 +2,7 @@ import SwiftUI
 import AVFoundation
 import UIKit
 
-class AudioPlayer: ObservableObject {
+class AudioPlayer: NSObject, ObservableObject {
     static let shared = AudioPlayer()
     private var player: AVPlayer?
     @Published var isPlaying = false
@@ -10,32 +10,92 @@ class AudioPlayer: ObservableObject {
     private var timeObserver: Any?
     
     func play(url: String) {
-        guard let url = URL(string: url) else { return }
+        print("Attempting to play URL: \(url)")
+        
+        guard let audioURL = URL(string: url) else {
+            print("❌ Failed to create URL from string: \(url)")
+            return
+        }
+        
         stop()
-        let playerItem = AVPlayerItem(url: url)
+        let playerItem = AVPlayerItem(url: audioURL)
+        
+        // Add error handling for the player item
+        NotificationCenter.default.addObserver(self,
+                                             selector: #selector(playerItemDidFailToPlay),
+                                             name: .AVPlayerItemFailedToPlayToEndTime,
+                                             object: playerItem)
+        
+        // Add status observation
+        playerItem.addObserver(self,
+                             forKeyPath: #keyPath(AVPlayerItem.status),
+                             options: [.old, .new],
+                             context: nil)
+        
         player = AVPlayer(playerItem: playerItem)
+        print("✓ Created AVPlayer with item")
         
         timeObserver = player?.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: 1, preferredTimescale: 1),
             queue: .main
         ) { [weak self] time in
             self?.currentTime = time.seconds
+            print("Current playback time: \(time.seconds)")
         }
         
         player?.play()
         isPlaying = true
+        print("▶️ Started playback")
+    }
+    
+    override func observeValue(forKeyPath keyPath: String?,
+                             of object: Any?,
+                             change: [NSKeyValueChangeKey : Any]?,
+                             context: UnsafeMutableRawPointer?) {
+        if keyPath == #keyPath(AVPlayerItem.status) {
+            let status: AVPlayerItem.Status
+            
+            if let statusNumber = change?[.newKey] as? NSNumber {
+                status = AVPlayerItem.Status(rawValue: statusNumber.intValue)!
+            } else {
+                status = .unknown
+            }
+            
+            // Handle the status change
+            switch status {
+            case .readyToPlay:
+                print("✓ Player item is ready to play")
+            case .failed:
+                if let error = (object as? AVPlayerItem)?.error {
+                    print("❌ Player item failed with error: \(error)")
+                }
+            case .unknown:
+                print("⚠️ Player item status is unknown")
+            @unknown default:
+                print("⚠️ Player item has unhandled status")
+            }
+        }
+    }
+    
+    @objc private func playerItemDidFailToPlay(_ notification: Notification) {
+        if let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error {
+            print("❌ Playback failed with error: \(error)")
+        }
     }
     
     func togglePlayPause() {
         if isPlaying {
+            print("⏸️ Pausing playback")
             player?.pause()
         } else {
+            print("▶️ Resuming playback")
             player?.play()
         }
         isPlaying.toggle()
     }
     
     func stop() {
+        print("⏹️ Stopping playback")
         player?.pause()
         if let observer = timeObserver {
             player?.removeTimeObserver(observer)
@@ -43,6 +103,10 @@ class AudioPlayer: ObservableObject {
         player = nil
         isPlaying = false
         currentTime = 0
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 }
 
