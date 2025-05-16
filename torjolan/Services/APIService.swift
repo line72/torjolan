@@ -170,29 +170,48 @@ class APIService {
     }
     
     func submitSongCompletion(stationId: Int, songId: String) async throws -> Bool {
-        guard let url = URL(string: "\(baseURL)/api/stations/\(stationId)/\(songId)") else {
+        guard let url = URL(string: "\(baseURL)/api/station/\(stationId)/\(songId)") else {
+            print("❌ Invalid URL constructed for song completion")
             throw APIError.invalidURL
         }
+        
+        print("📡 Submitting song completion - URL: \(url.absoluteString)")
         
         var request = authorizedRequest(url)
         request.httpMethod = "POST"
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 401 {
-                throw APIError.unauthorized
-            }
+        guard let httpResponse = response as? HTTPURLResponse else {
+            print("❌ Response is not HTTPURLResponse")
             throw APIError.invalidResponse
         }
         
-        let result = try JSONDecoder().decode(SuccessResponse.self, from: data)
-        return result.success
+        print("📡 Song completion response status: \(httpResponse.statusCode)")
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("📡 Response body: \(responseString)")
+        }
+        
+        guard (200...299).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 401 {
+                print("❌ Unauthorized - token may be invalid")
+                throw APIError.unauthorized
+            }
+            print("❌ Invalid response status: \(httpResponse.statusCode)")
+            throw APIError.invalidResponse
+        }
+        
+        do {
+            let result = try JSONDecoder().decode(SuccessResponse.self, from: data)
+            return result.success
+        } catch {
+            print("❌ Failed to decode response: \(error)")
+            throw APIError.decodingError(error)
+        }
     }
     
     func thumbsUp(stationId: Int, songId: String) async throws -> Bool {
-        guard let url = URL(string: "\(baseURL)/api/stations/\(stationId)/\(songId)/thumbs_up") else {
+        guard let url = URL(string: "\(baseURL)/api/station/\(stationId)/\(songId)/thumbs_up") else {
             throw APIError.invalidURL
         }
         
@@ -214,7 +233,7 @@ class APIService {
     }
     
     func thumbsDown(stationId: Int, songId: String) async throws -> Bool {
-        guard let url = URL(string: "\(baseURL)/api/stations/\(stationId)/\(songId)/thumbs_down") else {
+        guard let url = URL(string: "\(baseURL)/api/station/\(stationId)/\(songId)/thumbs_down") else {
             throw APIError.invalidURL
         }
         
