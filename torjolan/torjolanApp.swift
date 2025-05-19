@@ -13,9 +13,9 @@ struct torjolanApp: App {
     
     init() {
         #if DEBUG
-        APIService.configure(baseURL: "https://pandora.line72.net") // Development server
+        APIService.configure(baseURL: "https://boldaric.line72.net") // Development server
         #else
-        APIService.configure(baseURL: "https://pandora.line72.net") // Production server
+        APIService.configure(baseURL: "https://boldaric.line72.net") // Production server
         #endif
     }
     

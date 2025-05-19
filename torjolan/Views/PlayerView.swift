@@ -129,6 +129,13 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         }
     }
     
+    func startPlayingNewStation(_ stationResponse: CreateStationResponse) {
+        currentStation = Station(id: stationResponse.station.id, name: stationResponse.station.name)
+        let song = Song(from: stationResponse.track)
+        
+        play(url: stationResponse.track.url, song: song)
+    }
+    
     private func fetchAndPlayNextSong() async {
         guard let station = currentStation else { return }
         
@@ -185,17 +192,6 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
             print("✓ Media playback ended")
             isPlaying = false
             Task {
-                if let song = currentSong, let station = currentStation {
-                    do {
-                        // Submit the completed song
-                        let success = try await APIService.shared.submitSongCompletion(stationId: station.id, songId: song.id)
-                        if success {
-                            print("✓ Successfully submitted song completion")
-                        }
-                    } catch {
-                        print("Failed to submit song completion: \(error)")
-                    }
-                }
                 await fetchAndPlayNextSong()
             }
         default:

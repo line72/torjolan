@@ -32,6 +32,11 @@ struct SuccessResponse: Codable {
     let success: Bool
 }
 
+struct CreateStationResponse: Codable {
+    let station: StationResponse
+    let track: StreamResponse
+}
+
 enum APIError: Error {
     case invalidURL
     case networkError(Error)
@@ -114,7 +119,7 @@ class APIService {
         return try JSONDecoder().decode([StationResponse].self, from: data)
     }
     
-    func createStation(name: String, songId: String) async throws -> StationResponse {
+    func createStation(name: String, songId: String) async throws -> CreateStationResponse {
         guard let url = URL(string: "\(baseURL)/api/stations") else {
             throw APIError.invalidURL
         }
@@ -135,7 +140,7 @@ class APIService {
             throw APIError.invalidResponse
         }
         
-        return try JSONDecoder().decode(StationResponse.self, from: data)
+        return try JSONDecoder().decode(CreateStationResponse.self, from: data)
     }
     
     func getStationStream(stationId: Int) async throws -> StreamResponse {
@@ -167,47 +172,6 @@ class APIService {
         }
         
         return try JSONDecoder().decode(StreamResponse.self, from: data)
-    }
-    
-    func submitSongCompletion(stationId: Int, songId: String) async throws -> Bool {
-        guard let url = URL(string: "\(baseURL)/api/station/\(stationId)/\(songId)") else {
-            print("❌ Invalid URL constructed for song completion")
-            throw APIError.invalidURL
-        }
-        
-        print("📡 Submitting song completion - URL: \(url.absoluteString)")
-        
-        var request = authorizedRequest(url)
-        request.httpMethod = "POST"
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            print("❌ Response is not HTTPURLResponse")
-            throw APIError.invalidResponse
-        }
-        
-        print("📡 Song completion response status: \(httpResponse.statusCode)")
-        if let responseString = String(data: data, encoding: .utf8) {
-            print("📡 Response body: \(responseString)")
-        }
-        
-        guard (200...299).contains(httpResponse.statusCode) else {
-            if httpResponse.statusCode == 401 {
-                print("❌ Unauthorized - token may be invalid")
-                throw APIError.unauthorized
-            }
-            print("❌ Invalid response status: \(httpResponse.statusCode)")
-            throw APIError.invalidResponse
-        }
-        
-        do {
-            let result = try JSONDecoder().decode(SuccessResponse.self, from: data)
-            return result.success
-        } catch {
-            print("❌ Failed to decode response: \(error)")
-            throw APIError.decodingError(error)
-        }
     }
     
     func thumbsUp(stationId: Int, songId: String) async throws -> Bool {
