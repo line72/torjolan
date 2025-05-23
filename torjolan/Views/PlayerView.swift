@@ -378,11 +378,15 @@ struct PlayerView: View {
         .navigationTitle(station.name)
         .navigationBarTitleDisplayMode(.inline)  // Ensures long station names don't take up too much space
         .onAppear {
+            // Allow screen to turn off during playback
+            UIApplication.shared.isIdleTimerDisabled = false
             audioPlayer.stop()
             audioPlayer.startPlayingStation(station)
         }
         .onDisappear {
             audioPlayer.stop()
+            // Reset to system default
+            UIApplication.shared.isIdleTimerDisabled = false
         }
         .alert("Error", isPresented: .constant(errorMessage != nil)) {
             Button("OK") {
