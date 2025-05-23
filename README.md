@@ -14,6 +14,17 @@ songs based upon their features. You can think of it as a self-hosted,
 personal Pandora music service: one with no ads, no data sharing or
 tracking, and no algorithmic bias toward popular tracks!
 
+<div class="container" style="max-width: 100vw; padding: 1rem;">
+  <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+    <div class="item" style="width: 100%; height: auto; display: block;">
+      <img src="resources/tor-jolan-screenshot-1.png" alt="Stations View">
+    </div>
+    <div class="item" style="width: 100%; height: auto; display: block;">
+      <img src="resources/tor-jolan-screenshot-2.png" alt="Player View">
+    </div>
+  </div>
+</div>
+
 ## What's With The Name?
 
 [Tor Jolan](https://memory-alpha.fandom.com/wiki/Tor_Jolan) is a
