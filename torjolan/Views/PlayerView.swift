@@ -123,6 +123,9 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
     }
     
     func startPlayingStation(_ station: Station) {
+        // Stop any existing playback
+        stop()
+        
         currentStation = station
         Task {
             await fetchAndPlayNextSong()
@@ -355,7 +358,13 @@ struct PlayerView: View {
         }
         .navigationTitle(station.name)
         .onAppear {
+            // Stop any existing playback before starting new station
+            audioPlayer.stop()
             audioPlayer.startPlayingStation(station)
+        }
+        .onDisappear {
+            // Stop playback when leaving the view
+            audioPlayer.stop()
         }
         .alert("Error", isPresented: .constant(errorMessage != nil)) {
             Button("OK") {
