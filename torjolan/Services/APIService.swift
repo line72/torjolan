@@ -48,7 +48,18 @@ enum APIError: Error {
 class APIService {
     static let shared = APIService()
     private var baseURL: String
-    private var authToken: String?
+    var authToken: String? {
+        didSet {
+            // When token is updated, update the User.current if needed
+            if let token = authToken,
+               User.current?.token != token {
+                // This is a simplified version. In a real app, you might want to
+                // validate the token or refresh user data from the server
+                // For now, we'll just ensure the token is saved
+                try? KeychainManager.shared.saveToken(token)
+            }
+        }
+    }
     
     private init() {
         self.baseURL = "https://api.example.com" // Default value

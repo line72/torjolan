@@ -17,6 +17,12 @@ struct torjolanApp: App {
         #else
         APIService.configure(baseURL: "https://boldaric.line72.net") // Production server
         #endif
+        
+        // Check for saved token and set up initial login state
+        if let token = try? KeychainManager.shared.loadToken() {
+            APIService.shared.authToken = token
+            _isLoggedIn = State(initialValue: true)
+        }
     }
     
     var body: some Scene {
