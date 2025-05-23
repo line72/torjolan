@@ -34,6 +34,7 @@ struct torjolanApp: App {
                     LoginView(isLoggedIn: $isLoggedIn)
                 }
             }
+            .tint(Color(red: 0, green: 0.749, blue: 1.0)) // #00BFFF
         }
     }
 }
