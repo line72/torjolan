@@ -275,22 +275,37 @@ struct PlayerView: View {
                     .shadow(radius: 10)
                     .padding()
                     
-                    // Song Info
+                    // Song Info - Fixed height section
                     VStack(spacing: 8) {
                         Text(audioPlayer.currentSong?.title ?? "Loading...")
                             .font(.title2)
                             .bold()
-                        Text(audioPlayer.currentSong?.artist ?? "")
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                        
+                        Text(audioPlayer.currentSong?.artist ?? " ")  // Use space to maintain height
                             .font(.title3)
                             .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .frame(maxWidth: .infinity, alignment: .center)
                         
                         if let album = audioPlayer.currentSong?.album {
                             Text(album)
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                        } else {
+                            Text(" ")  // Placeholder to maintain consistent height
+                                .font(.subheadline)
+                                .foregroundColor(.clear)
                         }
                     }
                     .padding(.horizontal)
+                    .frame(height: 100)  // Fixed height for song info section
                     
                     // Time Slider
                     VStack(spacing: 4) {
@@ -323,7 +338,9 @@ struct PlayerView: View {
                     }
                     .padding(.horizontal)
                     
-                    // Controls
+                    Spacer()
+                    
+                    // Controls - Fixed at bottom
                     HStack(spacing: 40) {
                         Button(action: {
                             Task {
@@ -353,17 +370,18 @@ struct PlayerView: View {
                         }
                     }
                     .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color(uiColor: .systemBackground).opacity(0.9))
                 }
             }
         }
         .navigationTitle(station.name)
+        .navigationBarTitleDisplayMode(.inline)  // Ensures long station names don't take up too much space
         .onAppear {
-            // Stop any existing playback before starting new station
             audioPlayer.stop()
             audioPlayer.startPlayingStation(station)
         }
         .onDisappear {
-            // Stop playback when leaving the view
             audioPlayer.stop()
         }
         .alert("Error", isPresented: .constant(errorMessage != nil)) {
