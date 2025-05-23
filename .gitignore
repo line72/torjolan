@@ -93,3 +93,18 @@ build/
 
 Pods/
 *.xcworkspace
+
+.envrc
+.direnv/
+.venv/
+
+.vscode/
+aider.code-workspace
+*.pyc
+.aider*
+aider_chat.egg-info/
+build
+dist/
+.#*
+.gitattributes
+
