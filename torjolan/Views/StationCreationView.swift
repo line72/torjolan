@@ -10,8 +10,8 @@ struct StationCreationView: View {
     @State private var selectedSong: SearchResult?
     @State private var errorMessage: String?
     @State private var isCreating = false
-    @State private var createdStationResponse: CreateStationResponse?
-    @State private var shouldNavigateToPlayer = false
+    
+    var onStationCreated: (CreateStationResponse) -> Void
     
     // Search debouncing
     @State private var searchCancellable: AnyCancellable?
@@ -68,14 +68,6 @@ struct StationCreationView: View {
         .onAppear {
             setupSearch()
         }
-        .navigationDestination(isPresented: $shouldNavigateToPlayer) {
-            if let response = createdStationResponse {
-                PlayerView(station: Station(id: response.station.id, name: response.station.name))
-                    .onAppear {
-                        AudioPlayer.shared.startPlayingNewStation(response)
-                    }
-            }
-        }
     }
     
     private func setupSearch() {
@@ -115,8 +107,8 @@ struct StationCreationView: View {
             isCreating = true
             do {
                 let response = try await APIService.shared.createStation(name: stationName, songId: song.id)
-                createdStationResponse = response
-                shouldNavigateToPlayer = true
+                onStationCreated(response)
+                dismiss()
             } catch {
                 errorMessage = "Failed to create station: \(error.localizedDescription)"
             }
@@ -127,6 +119,6 @@ struct StationCreationView: View {
 
 #Preview {
     NavigationView {
-        StationCreationView()
+        StationCreationView { _ in }
     }
 } 

@@ -4,6 +4,8 @@ struct StationListView: View {
     @State private var stations: [Station] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var showingCreateStation = false
+    @State private var newStationResponse: CreateStationResponse?
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Binding var isLoggedIn: Bool
     
@@ -49,12 +51,41 @@ struct StationListView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack {
-                    NavigationLink(destination: StationCreationView()) {
+                    Button(action: { showingCreateStation = true }) {
                         Label("Create Station", systemImage: "plus.circle")
                     }
                     Button(action: logout) {
                         Label("Log Out", systemImage: "rectangle.portrait.and.arrow.right")
                     }
+                }
+            }
+        }
+        .sheet(isPresented: $showingCreateStation) {
+            NavigationView {
+                StationCreationView { response in
+                    newStationResponse = response
+                    // Add the new station to the list
+                    let newStation = Station(id: response.station.id, name: response.station.name)
+                    stations.append(newStation)
+                }
+            }
+        }
+        .onChange(of: newStationResponse) { oldValue, newValue in
+            if let response = newValue {
+                // Navigate to PlayerView and start playback
+                let station = Station(id: response.station.id, name: response.station.name)
+                let playerView = PlayerView(station: station)
+                AudioPlayer.shared.startPlayingNewStation(response)
+                
+                // Reset the response
+                newStationResponse = nil
+                
+                // Push the PlayerView
+                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                   let window = windowScene.windows.first,
+                   let rootViewController = window.rootViewController,
+                   let navigationController = rootViewController.children.first as? UINavigationController {
+                    navigationController.pushViewController(UIHostingController(rootView: playerView), animated: true)
                 }
             }
         }
