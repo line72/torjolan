@@ -79,21 +79,9 @@ struct StationListView: View {
                 activeStation = Station(id: response.station.id, name: response.station.name)
             }
         }
-        .background(
-            NavigationLink(
-                destination: Group {
-                    if let station = activeStation {
-                        PlayerView(station: station)
-                    }
-                },
-                isActive: Binding(
-                    get: { activeStation != nil },
-                    set: { if !$0 { activeStation = nil } }
-                )
-            ) {
-                EmptyView()
-            }
-        )
+        .navigationDestination(item: $activeStation) { station in
+            PlayerView(station: station)
+        }
         .onAppear {
             if stations.isEmpty {
                 fetchStations()

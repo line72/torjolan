@@ -18,7 +18,6 @@ struct torjolanApp: App {
             // We have both host and token
             APIService.configure(baseURL: savedHost)
             APIService.setAuthToken(authToken: token)
-
             _isLoggedIn = State(initialValue: true)
         } else {
             // Missing either host or token, ensure logged out state
@@ -33,14 +32,17 @@ struct torjolanApp: App {
     
     var body: some Scene {
         WindowGroup {
-            NavigationView {
-                if isLoggedIn {
+            if isLoggedIn {
+                NavigationStack {
                     StationListView(isLoggedIn: $isLoggedIn)
-                } else {
+                }
+                .tint(Color(red: 0, green: 0.749, blue: 1.0)) // #00BFFF
+            } else {
+                NavigationStack {
                     LoginView(isLoggedIn: $isLoggedIn)
                 }
+                .tint(Color(red: 0, green: 0.749, blue: 1.0)) // #00BFFF
             }
-            .tint(Color(red: 0, green: 0.749, blue: 1.0)) // #00BFFF
         }
     }
 }
