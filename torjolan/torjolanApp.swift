@@ -12,15 +12,21 @@ struct torjolanApp: App {
     @State private var isLoggedIn = false
     
     init() {
-        // Configure API with saved host or default
-        if let savedHost = HostSettings.shared.host {
+        // Only consider user logged in if both host and token exist
+        if let savedHost = HostSettings.shared.host,
+           let token = try? KeychainManager.shared.loadToken() {
+            // We have both host and token
             APIService.configure(baseURL: savedHost)
-        }
-        
-        // Check for saved token and set up initial login state
-        if let token = try? KeychainManager.shared.loadToken() {
-            APIService.shared.authToken = token
+            APIService.setAuthToken(authToken: token)
             _isLoggedIn = State(initialValue: true)
+        } else {
+            // Missing either host or token, ensure logged out state
+            _isLoggedIn = State(initialValue: false)
+            
+            // If we have a host but no token, still configure the API
+            if let savedHost = HostSettings.shared.host {
+                APIService.configure(baseURL: savedHost)
+            }
         }
     }
     
