@@ -6,10 +6,11 @@
 //
 
 import SwiftUI
+import CarPlay
 
 @main
 struct torjolanApp: App {
-    @State private var isLoggedIn = false
+    @UIApplicationDelegateAdaptor private var appDelegate: AppDelegate
     
     init() {
         // Only consider user logged in if both host and token exist
@@ -18,11 +19,7 @@ struct torjolanApp: App {
             // We have both host and token
             APIService.configure(baseURL: savedHost)
             APIService.setAuthToken(authToken: token)
-            _isLoggedIn = State(initialValue: true)
         } else {
-            // Missing either host or token, ensure logged out state
-            _isLoggedIn = State(initialValue: false)
-            
             // If we have a host but no token, still configure the API
             if let savedHost = HostSettings.shared.host {
                 APIService.configure(baseURL: savedHost)
@@ -32,17 +29,21 @@ struct torjolanApp: App {
     
     var body: some Scene {
         WindowGroup {
-            if isLoggedIn {
-                NavigationStack {
-                    StationListView(isLoggedIn: $isLoggedIn)
-                }
-                .tint(Color(red: 0, green: 0.749, blue: 1.0)) // #00BFFF
-            } else {
-                NavigationStack {
-                    LoginView(isLoggedIn: $isLoggedIn)
-                }
-                .tint(Color(red: 0, green: 0.749, blue: 1.0)) // #00BFFF
-            }
+            ContentView()
         }
+    }
+}
+
+class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession, options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        let sceneConfig = UISceneConfiguration(name: nil, sessionRole: connectingSceneSession.role)
+        
+        if connectingSceneSession.role == .carTemplateApplication {
+            sceneConfig.delegateClass = CarPlaySceneDelegate.self
+        } else {
+            sceneConfig.delegateClass = SceneDelegate.self
+        }
+        
+        return sceneConfig
     }
 }

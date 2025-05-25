@@ -19,7 +19,9 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         super.init()
         setupAudioSession()
         setupPlayer()
-        setupRemoteTransportControls()
+        Task { @MainActor in
+            setupRemoteTransportControls()
+        }
         setupTimeUpdates()
     }
     
@@ -38,23 +40,77 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         player?.audio?.volume = 100
     }
     
+    @MainActor
     private func setupRemoteTransportControls() {
         let commandCenter = MPRemoteCommandCenter.shared()
         
         // Enable play/pause commands
         commandCenter.playCommand.addTarget { [weak self] event in
-            self?.player?.play()
-            self?.isPlaying = true
-            return .success
+            Task { @MainActor in
+                self?.player?.play()
+                self?.isPlaying = true
+            }
+            return MPRemoteCommandHandlerStatus.success
         }
         
         commandCenter.pauseCommand.addTarget { [weak self] event in
-            self?.player?.pause()
-            self?.isPlaying = false
-            return .success
+            Task { @MainActor in
+                self?.player?.pause()
+                self?.isPlaying = false
+            }
+            return MPRemoteCommandHandlerStatus.success
         }
         
-        // Disable next/previous track commands
+        // Enable thumbs up/down commands for CarPlay
+        commandCenter.likeCommand.isEnabled = true
+        commandCenter.likeCommand.addTarget { [weak self] event in
+            guard let self = self,
+                  let station = self.currentStation,
+                  let song = self.currentSong else {
+                return .commandFailed
+            }
+            
+            Task {
+                do {
+                    let success = try await APIService.shared.thumbsUp(stationId: station.id, songId: song.id)
+                    if success {
+                        self.isThumbedUp = true
+                        return MPRemoteCommandHandlerStatus.success
+                    }
+                    return MPRemoteCommandHandlerStatus.commandFailed
+                } catch {
+                    return MPRemoteCommandHandlerStatus.commandFailed
+                }
+            }
+            return MPRemoteCommandHandlerStatus.success
+        }
+        
+        commandCenter.dislikeCommand.isEnabled = true
+        commandCenter.dislikeCommand.addTarget { [weak self] event in
+            guard let self = self,
+                  let station = self.currentStation,
+                  let song = self.currentSong else {
+                return .commandFailed
+            }
+            
+            Task {
+                do {
+                    let success = try await APIService.shared.thumbsDown(stationId: station.id, songId: song.id)
+                    if success {
+                        // Stop current playback and start next song
+                        self.stop()
+                        self.startPlayingStation(station)
+                        return MPRemoteCommandHandlerStatus.success
+                    }
+                    return MPRemoteCommandHandlerStatus.commandFailed
+                } catch {
+                    return MPRemoteCommandHandlerStatus.commandFailed
+                }
+            }
+            return MPRemoteCommandHandlerStatus.success
+        }
+        
+        // Disable next/previous track commands as they don't apply to radio
         commandCenter.nextTrackCommand.isEnabled = false
         commandCenter.previousTrackCommand.isEnabled = false
     }
@@ -63,18 +119,24 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         // Create a timer that updates every 0.5 seconds
         timeUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             guard let self = self, let player = self.player else { return }
-            self.currentTime = TimeInterval(player.time.intValue) / 1000.0 // VLC time is in milliseconds
-            self.duration = TimeInterval(player.media?.length.intValue ?? 0) / 1000.0
+            let newTime = TimeInterval(player.time.intValue) / 1000.0 // VLC time is in milliseconds
+            let newDuration = TimeInterval(player.media?.length.intValue ?? 0) / 1000.0
             
-            // Update lock screen progress
-            if var nowPlayingInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo {
-                nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = self.currentTime
-                nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = self.duration
-                MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+            Task { @MainActor in
+                self.currentTime = newTime
+                self.duration = newDuration
+                
+                // Update lock screen progress
+                if var nowPlayingInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo {
+                    nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = self.currentTime
+                    nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = self.duration
+                    MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+                }
             }
         }
     }
     
+    @MainActor
     func seek(to time: TimeInterval) {
         guard let player = player else { return }
         // VLC expects time in milliseconds
@@ -87,6 +149,7 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         }
     }
     
+    @MainActor
     private func updateNowPlayingInfo(for song: Song) {
         var nowPlayingInfo: [String: Any] = [
             MPMediaItemPropertyTitle: song.title,
@@ -94,7 +157,8 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
             MPMediaItemPropertyAlbumTitle: song.album,
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
-            MPMediaItemPropertyPlaybackDuration: duration
+            MPMediaItemPropertyPlaybackDuration: duration,
+            MPNowPlayingInfoPropertyDefaultPlaybackRate: 1.0
         ]
         
         // Load album artwork asynchronously if available
@@ -108,8 +172,9 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
                         }
                         nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
                         // Update the now playing info on the main thread
+                        let infoCopy = nowPlayingInfo
                         await MainActor.run {
-                            MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+                            MPNowPlayingInfoCenter.default().nowPlayingInfo = infoCopy
                         }
                     }
                 } catch {
@@ -122,21 +187,25 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
     }
     
+    @MainActor
     func startPlayingStation(_ station: Station) {
         // Stop any existing playback
-        stop()
-        
-        currentStation = station
         Task {
+            stop()
+            
+            currentStation = station
             await fetchAndPlayNextSong()
         }
     }
     
+    @MainActor
     func startPlayingNewStation(_ stationResponse: CreateStationResponse) {
-        currentStation = Station(id: stationResponse.station.id, name: stationResponse.station.name)
-        let song = Song(from: stationResponse.track)
-        
-        play(url: stationResponse.track.url, song: song)
+        Task {
+            currentStation = Station(id: stationResponse.station.id, name: stationResponse.station.name)
+            let song = Song(from: stationResponse.track)
+            
+            play(url: stationResponse.track.url, song: song)
+        }
     }
     
     private func fetchAndPlayNextSong() async {
@@ -154,6 +223,7 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         }
     }
     
+    @MainActor
     func play(url: String, song: Song) {
         print("Attempting to play URL: \(url)")
         
@@ -171,58 +241,74 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         print("✓ Created VLCMedia with URL")
         
         player?.play()
-        isPlaying = true
         print("▶️ Started playback")
         
-        // Update now playing info
+        // Update now playing info and state
         updateNowPlayingInfo(for: song)
+        updatePlaybackState(isPlaying: true)
     }
     
     func mediaPlayerStateChanged(_ aNotification: Notification) {
         guard let player = player else { return }
         
-        switch player.state {
-        case .playing:
-            print("✓ Media is playing")
-            isPlaying = true
-        case .error:
-            print("❌ Player encountered an error")
-            isPlaying = false
-            Task {
+        Task { @MainActor in
+            switch player.state {
+            case .playing:
+                print("✓ Media is playing")
+                updatePlaybackState(isPlaying: true)
+            case .paused:
+                print("⏸️ Media is paused")
+                updatePlaybackState(isPlaying: false)
+            case .error:
+                print("❌ Player encountered an error")
+                updatePlaybackState(isPlaying: false)
                 await fetchAndPlayNextSong()
-            }
-        case .ended:
-            print("✓ Media playback ended")
-            isPlaying = false
-            Task {
+            case .ended:
+                print("✓ Media playback ended")
+                updatePlaybackState(isPlaying: false)
                 await fetchAndPlayNextSong()
+            default:
+                break
             }
-        default:
-            break
         }
     }
     
+    @MainActor
     func togglePlayPause() {
         if isPlaying {
             print("⏸️ Pausing playback")
             player?.pause()
+            updatePlaybackState(isPlaying: false)
         } else {
             print("▶️ Resuming playback")
             player?.play()
+            updatePlaybackState(isPlaying: true)
         }
-        isPlaying.toggle()
+    }
+    
+    @MainActor
+    private func updatePlaybackState(isPlaying: Bool) {
+        self.isPlaying = isPlaying
         
         // Update playback rate in now playing info
         if var nowPlayingInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo {
             nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
         }
+        
+        // Update remote playback state
+        if isPlaying {
+            MPNowPlayingInfoCenter.default().playbackState = .playing
+        } else {
+            MPNowPlayingInfoCenter.default().playbackState = .paused
+        }
     }
     
+    @MainActor
     func stop() {
         print("⏹️ Stopping playback")
         player?.stop()
-        isPlaying = false
+        updatePlaybackState(isPlaying: false)
         currentTime = 0
         duration = 0
         currentSong = nil
