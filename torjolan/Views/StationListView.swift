@@ -48,8 +48,13 @@ struct StationListView: View {
         .navigationTitle("Radio Stations")
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: logout) {
-                    Label("Log Out", systemImage: "rectangle.portrait.and.arrow.right")
+                HStack {
+                    NavigationLink(destination: StationCreationView()) {
+                        Label("Create Station", systemImage: "plus.circle")
+                    }
+                    Button(action: logout) {
+                        Label("Log Out", systemImage: "rectangle.portrait.and.arrow.right")
+                    }
                 }
             }
         }
