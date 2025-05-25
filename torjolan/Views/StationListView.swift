@@ -4,6 +4,9 @@ struct StationListView: View {
     @State private var stations: [Station] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var showingCreateStation = false
+    @State private var newStationResponse: CreateStationResponse?
+    @State private var activeStation: Station?
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Binding var isLoggedIn: Bool
     
@@ -48,10 +51,36 @@ struct StationListView: View {
         .navigationTitle("Radio Stations")
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: logout) {
-                    Label("Log Out", systemImage: "rectangle.portrait.and.arrow.right")
+                HStack {
+                    Button(action: { showingCreateStation = true }) {
+                        Label("Create Station", systemImage: "plus.circle")
+                    }
+                    Button(action: logout) {
+                        Label("Log Out", systemImage: "rectangle.portrait.and.arrow.right")
+                    }
                 }
             }
+        }
+        .sheet(isPresented: $showingCreateStation) {
+            NavigationView {
+                StationCreationView { response in
+                    newStationResponse = response
+                    // Add the new station to the list
+                    let newStation = Station(id: response.station.id, name: response.station.name)
+                    stations.append(newStation)
+                }
+            }
+        }
+        .onChange(of: newStationResponse) { oldValue, newValue in
+            if let response = newValue {
+                // Start playback
+                AudioPlayer.shared.startPlayingNewStation(response)
+                // Set the active station for navigation
+                activeStation = Station(id: response.station.id, name: response.station.name)
+            }
+        }
+        .navigationDestination(item: $activeStation) { station in
+            PlayerView(station: station)
         }
         .onAppear {
             if stations.isEmpty {

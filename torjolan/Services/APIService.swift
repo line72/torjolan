@@ -7,12 +7,12 @@ struct AuthResponse: Codable {
     let username: String
 }
 
-struct StationResponse: Codable {
+struct StationResponse: Codable, Equatable {
     let id: Int
     let name: String
 }
 
-struct StreamResponse: Codable {
+struct StreamResponse: Codable, Equatable {
     let url: String
     let song_id: String
     let artist: String
@@ -32,7 +32,7 @@ struct SuccessResponse: Codable {
     let success: Bool
 }
 
-struct CreateStationResponse: Codable {
+struct CreateStationResponse: Codable, Equatable {
     let station: StationResponse
     let track: StreamResponse
 }
@@ -233,16 +233,12 @@ class APIService {
         return result.success
     }
     
-    func searchSongs(artist: String? = nil, title: String? = nil) async throws -> [SearchResult] {
+    func searchSongs(artist: String = "", title: String = "") async throws -> [SearchResult] {
         var components = URLComponents(string: "\(baseURL)/api/search")
         var queryItems: [URLQueryItem] = []
         
-        if let artist = artist {
             queryItems.append(URLQueryItem(name: "artist", value: artist))
-        }
-        if let title = title {
             queryItems.append(URLQueryItem(name: "title", value: title))
-        }
         
         components?.queryItems = queryItems
         

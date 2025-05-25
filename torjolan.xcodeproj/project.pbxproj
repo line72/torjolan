@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		01C8FD36B4AF361A8D7AE84D /* Pods_torjolan_torjolanUITests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F905902503F80EC74B85833D /* Pods_torjolan_torjolanUITests.framework */; };
-		41EB4DDBF127767893127362 /* Pods_torjolan_torjolanTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 159A80D5F5AF66EFEC40A197 /* Pods_torjolan_torjolanTests.framework */; };
+		0535AA87A5947589392FD63B /* Pods_torjolanUITests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DEAB80D4E8B2916972C210AE /* Pods_torjolanUITests.framework */; };
+		5719BD5A60ECAC954B849209 /* Pods_torjolanTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B9650A9CBB9AC7060158E4F6 /* Pods_torjolanTests.framework */; };
 		DB4EBF35BA855826F9EC28FB /* Pods_torjolan.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B87C14B27C0B4D45E9691117 /* Pods_torjolan.framework */; };
 /* End PBXBuildFile section */
 
@@ -31,7 +31,6 @@
 
 /* Begin PBXFileReference section */
 		05EEAEF023DF1DD2EEB8B9B7 /* Pods-torjolan.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-torjolan.debug.xcconfig"; path = "Target Support Files/Pods-torjolan/Pods-torjolan.debug.xcconfig"; sourceTree = "<group>"; };
-		159A80D5F5AF66EFEC40A197 /* Pods_torjolan_torjolanTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_torjolan_torjolanTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		1A75774BC7EF25A46AB7ECE0 /* Pods-torjolanUITests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-torjolanUITests.release.xcconfig"; path = "Target Support Files/Pods-torjolanUITests/Pods-torjolanUITests.release.xcconfig"; sourceTree = "<group>"; };
 		42134D86729945F59BA8C85E /* Pods-torjolan-torjolanTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-torjolan-torjolanTests.debug.xcconfig"; path = "Target Support Files/Pods-torjolan-torjolanTests/Pods-torjolan-torjolanTests.debug.xcconfig"; sourceTree = "<group>"; };
 		5A6F676EEDA738C2F0513F0A /* Pods-torjolanTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-torjolanTests.debug.xcconfig"; path = "Target Support Files/Pods-torjolanTests/Pods-torjolanTests.debug.xcconfig"; sourceTree = "<group>"; };
@@ -40,12 +39,13 @@
 		9AE03BEA9E0C7618447022ED /* Pods-torjolan-torjolanUITests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-torjolan-torjolanUITests.release.xcconfig"; path = "Target Support Files/Pods-torjolan-torjolanUITests/Pods-torjolan-torjolanUITests.release.xcconfig"; sourceTree = "<group>"; };
 		A2CD92830B97D93375669040 /* Pods-torjolanUITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-torjolanUITests.debug.xcconfig"; path = "Target Support Files/Pods-torjolanUITests/Pods-torjolanUITests.debug.xcconfig"; sourceTree = "<group>"; };
 		B87C14B27C0B4D45E9691117 /* Pods_torjolan.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_torjolan.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		B9650A9CBB9AC7060158E4F6 /* Pods_torjolanTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_torjolanTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		C1EF1539F1D47F484541ECBD /* Pods-torjolan-torjolanTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-torjolan-torjolanTests.release.xcconfig"; path = "Target Support Files/Pods-torjolan-torjolanTests/Pods-torjolan-torjolanTests.release.xcconfig"; sourceTree = "<group>"; };
 		C51D7C922DD69BEC00E6D5EF /* torjolan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = torjolan.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C51D7CA02DD69BEE00E6D5EF /* torjolanTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = torjolanTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C51D7CAA2DD69BEE00E6D5EF /* torjolanUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = torjolanUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		DEAB80D4E8B2916972C210AE /* Pods_torjolanUITests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_torjolanUITests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		E8FFA61A6F3026CD3891834E /* Pods-torjolan-torjolanUITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-torjolan-torjolanUITests.debug.xcconfig"; path = "Target Support Files/Pods-torjolan-torjolanUITests/Pods-torjolan-torjolanUITests.debug.xcconfig"; sourceTree = "<group>"; };
-		F905902503F80EC74B85833D /* Pods_torjolan_torjolanUITests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_torjolan_torjolanUITests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -69,11 +69,15 @@
 		};
 		C51D7CA32DD69BEE00E6D5EF /* torjolanTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = torjolanTests;
 			sourceTree = "<group>";
 		};
 		C51D7CAD2DD69BEE00E6D5EF /* torjolanUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = torjolanUITests;
 			sourceTree = "<group>";
 		};
@@ -92,7 +96,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				41EB4DDBF127767893127362 /* Pods_torjolan_torjolanTests.framework in Frameworks */,
+				5719BD5A60ECAC954B849209 /* Pods_torjolanTests.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -100,7 +104,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				01C8FD36B4AF361A8D7AE84D /* Pods_torjolan_torjolanUITests.framework in Frameworks */,
+				0535AA87A5947589392FD63B /* Pods_torjolanUITests.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -150,8 +154,8 @@
 			isa = PBXGroup;
 			children = (
 				B87C14B27C0B4D45E9691117 /* Pods_torjolan.framework */,
-				159A80D5F5AF66EFEC40A197 /* Pods_torjolan_torjolanTests.framework */,
-				F905902503F80EC74B85833D /* Pods_torjolan_torjolanUITests.framework */,
+				B9650A9CBB9AC7060158E4F6 /* Pods_torjolanTests.framework */,
+				DEAB80D4E8B2916972C210AE /* Pods_torjolanUITests.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -189,7 +193,6 @@
 				C51D7C9C2DD69BEE00E6D5EF /* Sources */,
 				C51D7C9D2DD69BEE00E6D5EF /* Frameworks */,
 				C51D7C9E2DD69BEE00E6D5EF /* Resources */,
-				573BCFF639B1AC269C482A16 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -212,7 +215,6 @@
 				C51D7CA62DD69BEE00E6D5EF /* Sources */,
 				C51D7CA72DD69BEE00E6D5EF /* Frameworks */,
 				C51D7CA82DD69BEE00E6D5EF /* Resources */,
-				3F3612AF355EC8A185A4203B /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -304,59 +306,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-torjolan/Pods-torjolan-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-torjolan/Pods-torjolan-frameworks-${CONFIGURATION}-output-files.xcfilelist",
 			);
-			outputPaths = (
-			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-torjolan/Pods-torjolan-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		3F3612AF355EC8A185A4203B /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-torjolan-torjolanUITests/Pods-torjolan-torjolanUITests-frameworks-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			inputPaths = (
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-torjolan-torjolanUITests/Pods-torjolan-torjolanUITests-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-torjolan-torjolanUITests/Pods-torjolan-torjolanUITests-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		573BCFF639B1AC269C482A16 /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-torjolan-torjolanTests/Pods-torjolan-torjolanTests-frameworks-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			inputPaths = (
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-torjolan-torjolanTests/Pods-torjolan-torjolanTests-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-torjolan-torjolanTests/Pods-torjolan-torjolanTests-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 		7A8D02EF74311BF1B7E327EF /* [CP] Check Pods Manifest.lock */ = {
@@ -374,7 +330,7 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-torjolan-torjolanUITests-checkManifestLockResult.txt",
+				"$(DERIVED_FILE_DIR)/Pods-torjolanUITests-checkManifestLockResult.txt",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -418,7 +374,7 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-torjolan-torjolanTests-checkManifestLockResult.txt",
+				"$(DERIVED_FILE_DIR)/Pods-torjolanTests-checkManifestLockResult.txt",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -683,7 +639,7 @@
 		};
 		C51D7CB82DD69BEE00E6D5EF /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 42134D86729945F59BA8C85E /* Pods-torjolan-torjolanTests.debug.xcconfig */;
+			baseConfigurationReference = 5A6F676EEDA738C2F0513F0A /* Pods-torjolanTests.debug.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
@@ -708,7 +664,7 @@
 		};
 		C51D7CB92DD69BEE00E6D5EF /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = C1EF1539F1D47F484541ECBD /* Pods-torjolan-torjolanTests.release.xcconfig */;
+			baseConfigurationReference = 69B66B5694E8D004396BE29F /* Pods-torjolanTests.release.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
@@ -733,7 +689,7 @@
 		};
 		C51D7CBB2DD69BEE00E6D5EF /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = E8FFA61A6F3026CD3891834E /* Pods-torjolan-torjolanUITests.debug.xcconfig */;
+			baseConfigurationReference = A2CD92830B97D93375669040 /* Pods-torjolanUITests.debug.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -757,7 +713,7 @@
 		};
 		C51D7CBC2DD69BEE00E6D5EF /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9AE03BEA9E0C7618447022ED /* Pods-torjolan-torjolanUITests.release.xcconfig */;
+			baseConfigurationReference = 1A75774BC7EF25A46AB7ECE0 /* Pods-torjolanUITests.release.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
