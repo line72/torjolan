@@ -5,6 +5,7 @@ struct LoginView: View {
     @State private var username = ""
     @State private var isLoggingIn = false
     @State private var errorMessage: String?
+    @State private var isShowingHostSettings = false
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Binding var isLoggedIn: Bool
     
@@ -47,12 +48,28 @@ struct LoginView: View {
                     .frame(maxWidth: horizontalSizeClass == .compact ? nil : 400)
                     .padding(.horizontal)
                     .disabled(username.isEmpty || isLoggingIn)
+                    
+                    // Host Settings Button
+                    Button(action: { isShowingHostSettings = true }) {
+                        Label("Server Settings", systemImage: "server.rack")
+                    }
+                    .buttonStyle(.borderless)
+                    .font(.footnote)
                 }
                 
                 Spacer()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(uiColor: .systemBackground))
+        }
+        .sheet(isPresented: $isShowingHostSettings) {
+            HostSettingsView(isPresented: $isShowingHostSettings)
+        }
+        .onAppear {
+            // Check if host is configured
+            if !HostSettings.shared.isHostConfigured {
+                isShowingHostSettings = true
+            }
         }
     }
     

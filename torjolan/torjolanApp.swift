@@ -12,11 +12,10 @@ struct torjolanApp: App {
     @State private var isLoggedIn = false
     
     init() {
-        #if DEBUG
-        APIService.configure(baseURL: "https://boldaric.line72.net") // Development server
-        #else
-        APIService.configure(baseURL: "https://boldaric.line72.net") // Production server
-        #endif
+        // Configure API with saved host or default
+        if let savedHost = HostSettings.shared.host {
+            APIService.configure(baseURL: savedHost)
+        }
         
         // Check for saved token and set up initial login state
         if let token = try? KeychainManager.shared.loadToken() {
