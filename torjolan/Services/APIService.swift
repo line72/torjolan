@@ -68,6 +68,10 @@ class APIService {
     static func configure(baseURL: String) {
         shared.baseURL = baseURL
     }
+
+    static func setAuthToken(authToken: String) {
+        shared.authToken = authToken
+    }
     
     private func authorizedRequest(_ url: URL) -> URLRequest {
         var request = URLRequest(url: url)
