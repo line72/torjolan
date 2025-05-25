@@ -13,17 +13,9 @@ struct torjolanApp: App {
     @UIApplicationDelegateAdaptor private var appDelegate: AppDelegate
     
     init() {
-        // Only consider user logged in if both host and token exist
-        if let savedHost = HostSettings.shared.host,
-           let token = try? KeychainManager.shared.loadToken() {
-            // We have both host and token
+        // If we have a host but no token, still configure the API
+        if let savedHost = HostSettings.shared.host {
             APIService.configure(baseURL: savedHost)
-            APIService.setAuthToken(authToken: token)
-        } else {
-            // If we have a host but no token, still configure the API
-            if let savedHost = HostSettings.shared.host {
-                APIService.configure(baseURL: savedHost)
-            }
         }
     }
     

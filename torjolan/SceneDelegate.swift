@@ -33,20 +33,3 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 }
 
-struct ContentView: View {
-    @State private var isLoggedIn = false
-    
-    var body: some View {
-        if isLoggedIn {
-            NavigationStack {
-                StationListView(isLoggedIn: $isLoggedIn)
-            }
-            .tint(Color(red: 0, green: 0.749, blue: 1.0)) // #00BFFF
-        } else {
-            NavigationStack {
-                LoginView(isLoggedIn: $isLoggedIn)
-            }
-            .tint(Color(red: 0, green: 0.749, blue: 1.0)) // #00BFFF
-        }
-    }
-} 
