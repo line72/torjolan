@@ -5,6 +5,7 @@ struct StationListView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    @Binding var isLoggedIn: Bool
     
     private var gridColumns: [GridItem] {
         if horizontalSizeClass == .compact {
@@ -45,6 +46,13 @@ struct StationListView: View {
             }
         }
         .navigationTitle("Radio Stations")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: logout) {
+                    Label("Log Out", systemImage: "rectangle.portrait.and.arrow.right")
+                }
+            }
+        }
         .onAppear {
             if stations.isEmpty {
                 fetchStations()
@@ -64,6 +72,17 @@ struct StationListView: View {
                 errorMessage = "Failed to load stations. Please try again."
             }
             isLoading = false
+        }
+    }
+    
+    private func logout() {
+        // Clear user data
+        try? KeychainManager.shared.deleteToken()
+        User.current = nil
+        
+        // Update login state
+        withAnimation {
+            isLoggedIn = false
         }
     }
 }
@@ -101,6 +120,6 @@ struct StationCard: View {
 
 #Preview {
     NavigationView {
-        StationListView()
+        StationListView(isLoggedIn: .constant(true))
     }
 } 
