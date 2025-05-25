@@ -6,6 +6,7 @@ struct StationListView: View {
     @State private var errorMessage: String?
     @State private var showingCreateStation = false
     @State private var newStationResponse: CreateStationResponse?
+    @State private var activeStation: Station?
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Binding var isLoggedIn: Bool
     
@@ -72,23 +73,27 @@ struct StationListView: View {
         }
         .onChange(of: newStationResponse) { oldValue, newValue in
             if let response = newValue {
-                // Navigate to PlayerView and start playback
-                let station = Station(id: response.station.id, name: response.station.name)
-                let playerView = PlayerView(station: station)
+                // Start playback
                 AudioPlayer.shared.startPlayingNewStation(response)
-                
-                // Reset the response
-                newStationResponse = nil
-                
-                // Push the PlayerView
-                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                   let window = windowScene.windows.first,
-                   let rootViewController = window.rootViewController,
-                   let navigationController = rootViewController.children.first as? UINavigationController {
-                    navigationController.pushViewController(UIHostingController(rootView: playerView), animated: true)
-                }
+                // Set the active station for navigation
+                activeStation = Station(id: response.station.id, name: response.station.name)
             }
         }
+        .background(
+            NavigationLink(
+                destination: Group {
+                    if let station = activeStation {
+                        PlayerView(station: station)
+                    }
+                },
+                isActive: Binding(
+                    get: { activeStation != nil },
+                    set: { if !$0 { activeStation = nil } }
+                )
+            ) {
+                EmptyView()
+            }
+        )
         .onAppear {
             if stations.isEmpty {
                 fetchStations()
