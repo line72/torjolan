@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct StationCreationView: View {
     @Environment(\.dismiss) private var dismiss
@@ -9,6 +10,12 @@ struct StationCreationView: View {
     @State private var selectedSong: SearchResult?
     @State private var errorMessage: String?
     @State private var isCreating = false
+    @State private var createdStationResponse: CreateStationResponse?
+    @State private var shouldNavigateToPlayer = false
+    
+    // Search debouncing
+    @State private var searchCancellable: AnyCancellable?
+    private let searchSubject = PassthroughSubject<String, Never>()
     
     var body: some View {
         Form {
@@ -20,7 +27,7 @@ struct StationCreationView: View {
                 TextField("Search (e.g., Blind Guardian And The Story Ends)", text: $searchText)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .onChange(of: searchText) { oldValue, newValue in
-                        performSearch()
+                        searchSubject.send(newValue)
                     }
                 
                 if isSearching {
@@ -58,6 +65,30 @@ struct StationCreationView: View {
                 .disabled(stationName.isEmpty || selectedSong == nil || isCreating)
             }
         }
+        .onAppear {
+            setupSearch()
+        }
+        .navigationDestination(isPresented: $shouldNavigateToPlayer) {
+            if let response = createdStationResponse {
+                PlayerView(station: Station(id: response.station.id, name: response.station.name))
+                    .onAppear {
+                        AudioPlayer.shared.startPlayingNewStation(response)
+                    }
+            }
+        }
+    }
+    
+    private func setupSearch() {
+        searchCancellable = searchSubject
+            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
+            .removeDuplicates()
+            .sink { searchTerm in
+                guard !searchTerm.isEmpty else {
+                    searchResults = []
+                    return
+                }
+                performSearch()
+            }
     }
     
     private func performSearch() {
@@ -84,8 +115,8 @@ struct StationCreationView: View {
             isCreating = true
             do {
                 let response = try await APIService.shared.createStation(name: stationName, songId: song.id)
-                // Navigate to PlayerView with the new station and track
-                dismiss()
+                createdStationResponse = response
+                shouldNavigateToPlayer = true
             } catch {
                 errorMessage = "Failed to create station: \(error.localizedDescription)"
             }

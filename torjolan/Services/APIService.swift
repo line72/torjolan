@@ -233,16 +233,12 @@ class APIService {
         return result.success
     }
     
-    func searchSongs(artist: String? = nil, title: String? = nil) async throws -> [SearchResult] {
+    func searchSongs(artist: String = "", title: String = "") async throws -> [SearchResult] {
         var components = URLComponents(string: "\(baseURL)/api/search")
         var queryItems: [URLQueryItem] = []
         
-        if let artist = artist {
-            queryItems.append(URLQueryItem(name: "artist", value: artist))
-        }
-        if let title = title {
-            queryItems.append(URLQueryItem(name: "title", value: title))
-        }
+        queryItems.append(URLQueryItem(name: "artist", value: artist))
+        queryItems.append(URLQueryItem(name: "title", value: title))
         
         components?.queryItems = queryItems
         
