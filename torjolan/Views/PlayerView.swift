@@ -1,26 +1,26 @@
 import SwiftUI
-import MobileVLCKit
-import UIKit
 import AVFoundation
 import MediaPlayer
+import Combine
 
-class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
+class AudioPlayer: NSObject, ObservableObject {
     static let shared = AudioPlayer()
-    private var player: VLCMediaPlayer?
+    private var player: AVPlayer?
+    private var playerTimeObserver: Any?
+    private var playerItemStatusObserver: AnyCancellable?
+    private var playerItemDidPlayToEndObserver: AnyCancellable?
+    
     @Published var isPlaying = false
     @Published var currentTime: TimeInterval = 0
     @Published var currentSong: Song?
     private var currentStation: Station?
     @Published var duration: TimeInterval = 0
-    private var timeUpdateTimer: Timer?
     @Published var isThumbedUp = false
     
     override init() {
         super.init()
         setupAudioSession()
-        setupPlayer()
         setupRemoteTransportControls()
-        setupTimeUpdates()
     }
     
     private func setupAudioSession() {
@@ -30,12 +30,6 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         } catch {
             print("❌ Failed to setup audio session: \(error)")
         }
-    }
-    
-    private func setupPlayer() {
-        player = VLCMediaPlayer()
-        player?.delegate = self
-        player?.audio?.volume = 100
     }
     
     private func setupRemoteTransportControls() {
@@ -59,12 +53,18 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         commandCenter.previousTrackCommand.isEnabled = false
     }
     
-    private func setupTimeUpdates() {
-        // Create a timer that updates every 0.5 seconds
-        timeUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
-            guard let self = self, let player = self.player else { return }
-            self.currentTime = TimeInterval(player.time.intValue) / 1000.0 // VLC time is in milliseconds
-            self.duration = TimeInterval(player.media?.length.intValue ?? 0) / 1000.0
+    private func setupTimeObserver() {
+        // Remove existing observer if any
+        if let observer = playerTimeObserver {
+            player?.removeTimeObserver(observer)
+            playerTimeObserver = nil
+        }
+        
+        // Create new observer
+        let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        playerTimeObserver = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
+            guard let self = self else { return }
+            self.currentTime = time.seconds
             
             // Update lock screen progress
             if var nowPlayingInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo {
@@ -76,9 +76,8 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
     }
     
     func seek(to time: TimeInterval) {
-        guard let player = player else { return }
-        // VLC expects time in milliseconds
-        player.time = VLCTime(int: Int32(time * 1000))
+        let cmTime = CMTime(seconds: time, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        player?.seek(to: cmTime)
         
         // Update lock screen progress
         if var nowPlayingInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo {
@@ -166,40 +165,42 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
         
         currentSong = song
         isThumbedUp = false  // Reset thumbs up state for new song
-        let media = VLCMedia(url: audioURL)
-        player?.media = media
-        print("✓ Created VLCMedia with URL")
         
-        player?.play()
-        isPlaying = true
-        print("▶️ Started playback")
+        let playerItem = AVPlayerItem(url: audioURL)
+        player = AVPlayer(playerItem: playerItem)
         
-        // Update now playing info
+        // Observe player item status
+        playerItemStatusObserver = playerItem.publisher(for: \.status)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] status in
+                switch status {
+                case .readyToPlay:
+                    print("✓ Ready to play")
+                    self?.duration = playerItem.duration.seconds
+                    self?.player?.play()
+                    self?.isPlaying = true
+                case .failed:
+                    print("❌ Player item failed: \(playerItem.error?.localizedDescription ?? "unknown error")")
+                    Task {
+                        await self?.fetchAndPlayNextSong()
+                    }
+                default:
+                    break
+                }
+            }
+        
+        // Observe player item end
+        playerItemDidPlayToEndObserver = NotificationCenter.default.publisher(for: .AVPlayerItemDidPlayToEndTime)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                print("✓ Media playback ended")
+                Task {
+                    await self?.fetchAndPlayNextSong()
+                }
+            }
+        
+        setupTimeObserver()
         updateNowPlayingInfo(for: song)
-    }
-    
-    func mediaPlayerStateChanged(_ aNotification: Notification) {
-        guard let player = player else { return }
-        
-        switch player.state {
-        case .playing:
-            print("✓ Media is playing")
-            isPlaying = true
-        case .error:
-            print("❌ Player encountered an error")
-            isPlaying = false
-            Task {
-                await fetchAndPlayNextSong()
-            }
-        case .ended:
-            print("✓ Media playback ended")
-            isPlaying = false
-            Task {
-                await fetchAndPlayNextSong()
-            }
-        default:
-            break
-        }
     }
     
     func togglePlayPause() {
@@ -221,19 +222,23 @@ class AudioPlayer: NSObject, ObservableObject, VLCMediaPlayerDelegate {
     
     func stop() {
         print("⏹️ Stopping playback")
-        player?.stop()
+        player?.pause()
+        player = nil
+        playerTimeObserver = nil
+        playerItemStatusObserver = nil
+        playerItemDidPlayToEndObserver = nil
         isPlaying = false
         currentTime = 0
         duration = 0
         currentSong = nil
-        isThumbedUp = false  // Reset thumbs up state when stopping
+        isThumbedUp = false
         
         // Clear now playing info when stopping
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
     
     deinit {
-        timeUpdateTimer?.invalidate()
+        stop()
     }
 }
 

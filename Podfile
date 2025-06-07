@@ -6,8 +6,6 @@ platform :ios, '18.0'
 use_frameworks!
 
 target 'torjolan' do
-  pod 'MobileVLCKit', '~> 3.6.0b9'
-
   # Pods for torjolan
 
   target 'torjolanTests' do

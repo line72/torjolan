@@ -69,11 +69,15 @@
 		};
 		C51D7CA32DD69BEE00E6D5EF /* torjolanTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = torjolanTests;
 			sourceTree = "<group>";
 		};
 		C51D7CAD2DD69BEE00E6D5EF /* torjolanUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = torjolanUITests;
 			sourceTree = "<group>";
 		};
@@ -167,7 +171,6 @@
 				C51D7C8E2DD69BEC00E6D5EF /* Sources */,
 				C51D7C8F2DD69BEC00E6D5EF /* Frameworks */,
 				C51D7C902DD69BEC00E6D5EF /* Resources */,
-				08F2693E294923E393D1B546 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -294,27 +297,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		08F2693E294923E393D1B546 /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-torjolan/Pods-torjolan-frameworks-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			inputPaths = (
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-torjolan/Pods-torjolan-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-torjolan/Pods-torjolan-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
 		7A8D02EF74311BF1B7E327EF /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -548,7 +530,7 @@
 				CODE_SIGN_ENTITLEMENTS = torjolan/torjolan.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = RJAK2J4R9E;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -599,7 +581,7 @@
 				CODE_SIGN_ENTITLEMENTS = torjolan/torjolan.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = RJAK2J4R9E;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
