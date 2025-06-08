@@ -154,10 +154,13 @@ class AudioPlayer: NSObject, ObservableObject {
     }
     
     func play(url: String, song: Song) {
-        print("Attempting to play URL: \(url)")
+        // force to mp3
+        let mp3Url = url + "&format=mp3"
+        print("Attempting to play URL: \(mp3Url)")
+
         
-        guard let audioURL = URL(string: url) else {
-            print("❌ Failed to create URL from string: \(url)")
+        guard let audioURL = URL(string: mp3Url) else {
+            print("❌ Failed to create URL from string: \(mp3Url)")
             return
         }
         
