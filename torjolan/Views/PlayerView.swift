@@ -173,8 +173,10 @@ class AudioPlayer: NSObject, ObservableObject {
         
         stop()
         
-        currentSong = song
-        isThumbedUp = false  // Reset thumbs up state for new song
+        Task { @MainActor in
+            currentSong = song
+            isThumbedUp = false  // Reset thumbs up state for new song
+        }
         
         let playerItem = AVPlayerItem(url: audioURL)
         player = AVPlayer(playerItem: playerItem)
@@ -186,9 +188,11 @@ class AudioPlayer: NSObject, ObservableObject {
                 switch status {
                 case .readyToPlay:
                     print("✓ Ready to play")
-                    self?.duration = playerItem.duration.seconds
-                    self?.player?.play()
-                    self?.isPlaying = true
+                    Task { @MainActor in
+                        self?.duration = playerItem.duration.seconds
+                        self?.player?.play()
+                        self?.isPlaying = true
+                    }
                 case .failed:
                     print("❌ Player item failed: \(playerItem.error?.localizedDescription ?? "unknown error")")
                     Task {
@@ -227,7 +231,9 @@ class AudioPlayer: NSObject, ObservableObject {
             print("▶️ Resuming playback")
             player?.play()
         }
-        isPlaying.toggle()
+        Task { @MainActor in
+            isPlaying.toggle()
+        }
         
         // Update playback rate in now playing info
         if var nowPlayingInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo {
@@ -243,11 +249,14 @@ class AudioPlayer: NSObject, ObservableObject {
         playerTimeObserver = nil
         playerItemStatusObserver = nil
         playerItemDidPlayToEndObserver = nil
-        isPlaying = false
-        currentTime = 0
-        duration = 0
-        currentSong = nil
-        isThumbedUp = false
+        
+        Task { @MainActor in
+            isPlaying = false
+            currentTime = 0
+            duration = 0
+            currentSong = nil
+            isThumbedUp = false
+        }
         
         // Clear now playing info when stopping
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
