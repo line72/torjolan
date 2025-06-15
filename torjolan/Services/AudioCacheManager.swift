@@ -17,7 +17,7 @@ class AudioCacheManager: NSObject {
     private let maxCacheSize: Int64 = 500 * 1024 * 1024 // 500MB
     private var activeDownloads: [String: (task: URLSessionDownloadTask, tempURL: URL?)] = [:]
     private var downloadCallbacks: [String: (Result<URL, Error>) -> Void] = [:]
-    private let minimumPlaybackSize: Int64 = 1024 * 1024 // 1MB
+    private let minimumPlaybackSize: Int64 = 1024 * 256 // 256KB
     private var backgroundCompletionHandler: (() -> Void)?
     
     private lazy var session: URLSession = {
