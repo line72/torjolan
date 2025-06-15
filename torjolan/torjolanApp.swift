@@ -9,6 +9,7 @@ import SwiftUI
 
 @main
 struct torjolanApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var isLoggedIn = false
     
     init() {

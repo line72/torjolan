@@ -69,15 +69,11 @@
 		};
 		C51D7CA32DD69BEE00E6D5EF /* torjolanTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = torjolanTests;
 			sourceTree = "<group>";
 		};
 		C51D7CAD2DD69BEE00E6D5EF /* torjolanUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = torjolanUITests;
 			sourceTree = "<group>";
 		};

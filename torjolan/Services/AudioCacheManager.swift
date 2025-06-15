@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 enum CacheError: Error {
     case fileNotFound
@@ -16,9 +17,12 @@ class AudioCacheManager: NSObject {
     private var activeDownloads: [String: (task: URLSessionDownloadTask, tempURL: URL?)] = [:]
     private var downloadCallbacks: [String: (Result<URL, Error>) -> Void] = [:]
     private let minimumPlaybackSize: Int64 = 1024 * 1024 // 1MB
+    private var backgroundCompletionHandler: (() -> Void)?
     
     private lazy var session: URLSession = {
-        let config = URLSessionConfiguration.default
+        let config = URLSessionConfiguration.background(withIdentifier: "com.torjolan.audiocache")
+        config.isDiscretionary = true // Allow system to optimize download timing
+        config.sessionSendsLaunchEvents = true // Notify app when download completes
         return URLSession(configuration: config, delegate: self, delegateQueue: nil)
     }()
     
@@ -34,6 +38,12 @@ class AudioCacheManager: NSObject {
         
         // Start periodic cleanup
         startPeriodicCleanup()
+    }
+    
+    // MARK: - Background Download Support
+    
+    func setBackgroundCompletionHandler(_ handler: @escaping () -> Void) {
+        backgroundCompletionHandler = handler
     }
     
     // MARK: - Cache Operations
@@ -222,5 +232,13 @@ extension AudioCacheManager: URLSessionDownloadDelegate {
         }
         
         activeDownloads.removeValue(forKey: songId)
+    }
+    
+    // Handle background session completion
+    func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
+        DispatchQueue.main.async {
+            self.backgroundCompletionHandler?()
+            self.backgroundCompletionHandler = nil
+        }
     }
 } 
