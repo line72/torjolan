@@ -8,6 +8,7 @@ enum CacheError: Error {
     case fileSystemError(Error)
 }
 
+@MainActor
 class AudioCacheManager: NSObject {
     static let shared = AudioCacheManager()
     
@@ -71,7 +72,7 @@ class AudioCacheManager: NSObject {
         }
         
         // If download is already in progress, wait for it
-        if let existingDownload = activeDownloads[songId] {
+        if activeDownloads[songId] != nil {
             return try await withCheckedThrowingContinuation { continuation in
                 downloadCallbacks[songId] = { result in
                     switch result {
@@ -118,11 +119,13 @@ class AudioCacheManager: NSObject {
     private func startPeriodicCleanup() {
         // Run cleanup every hour
         Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
-            self?.cleanupCache()
+            Task { @MainActor [weak self] in
+                await self?.cleanupCache()
+            }
         }
     }
     
-    private func cleanupCache() {
+    private func cleanupCache() async {
         do {
             let fileURLs = try fileManager.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: [.contentModificationDateKey])
             
@@ -166,79 +169,86 @@ class AudioCacheManager: NSObject {
 
 // MARK: - URLSessionDelegate
 extension AudioCacheManager: URLSessionDownloadDelegate {
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        guard let originalURL = downloadTask.originalRequest?.url,
-              let songId = activeDownloads.first(where: { $0.value.task == downloadTask })?.key else {
-            return
-        }
-        
-        let fileURL = cacheDirectory.appendingPathComponent(songId)
-        
-        do {
-            // If file exists, remove it first
-            if fileManager.fileExists(atPath: fileURL.path) {
-                try fileManager.removeItem(at: fileURL)
+    nonisolated func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+        Task { @MainActor in
+            guard let songId = activeDownloads.first(where: { $0.value.task == downloadTask })?.key else {
+                return
             }
             
-            // Move the downloaded file to our cache directory
-            try fileManager.moveItem(at: location, to: fileURL)
+            let fileURL = cacheDirectory.appendingPathComponent(songId)
             
-            // Clean up download tracking
+            do {
+                // If file exists, remove it first
+                if fileManager.fileExists(atPath: fileURL.path) {
+                    try fileManager.removeItem(at: fileURL)
+                }
+                
+                // Move the downloaded file to our cache directory
+                try fileManager.moveItem(at: location, to: fileURL)
+                
+                // Clean up download tracking
+                activeDownloads.removeValue(forKey: songId)
+                
+                // Notify completion only if we haven't already notified for playback
+                if let callback = downloadCallbacks[songId] {
+                    callback(.success(fileURL))
+                    downloadCallbacks.removeValue(forKey: songId)
+                }
+            } catch {
+                print("Failed to move downloaded file: \(error)")
+                if let callback = downloadCallbacks[songId] {
+                    callback(.failure(error))
+                    downloadCallbacks.removeValue(forKey: songId)
+                }
+            }
+        }
+    }
+    
+    nonisolated func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+        Task { @MainActor in
+            guard let songId = activeDownloads.first(where: { $0.value.task == downloadTask })?.key else {
+                return
+            }
+            
+            // If we have enough data to start playing and haven't notified yet
+            if totalBytesWritten >= minimumPlaybackSize,
+               let callback = downloadCallbacks[songId],
+               activeDownloads[songId]?.tempURL == nil {
+                // Store the temporary URL
+                activeDownloads[songId]?.tempURL = downloadTask.originalRequest?.url
+                
+                // Notify that we can start playing
+                callback(.success(downloadTask.originalRequest!.url!))
+                // Remove the callback to prevent multiple notifications
+                downloadCallbacks.removeValue(forKey: songId)
+            }
+        }
+    }
+    
+    nonisolated func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        Task { @MainActor in
+            guard let downloadTask = task as? URLSessionDownloadTask,
+                  let songId = activeDownloads.first(where: { $0.value.task == downloadTask })?.key else {
+                return
+            }
+            
+            if let error = error {
+                print("Download failed: \(error)")
+                if let callback = downloadCallbacks[songId] {
+                    callback(.failure(error))
+                    downloadCallbacks.removeValue(forKey: songId)
+                }
+            }
+            
             activeDownloads.removeValue(forKey: songId)
-            
-            // Notify completion
-            if let callback = downloadCallbacks[songId] {
-                callback(.success(fileURL))
-                downloadCallbacks.removeValue(forKey: songId)
-            }
-        } catch {
-            print("Failed to move downloaded file: \(error)")
-            if let callback = downloadCallbacks[songId] {
-                callback(.failure(error))
-                downloadCallbacks.removeValue(forKey: songId)
-            }
         }
-    }
-    
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-        guard let songId = activeDownloads.first(where: { $0.value.task == downloadTask })?.key else {
-            return
-        }
-        
-        // If we have enough data to start playing and haven't notified yet
-        if totalBytesWritten >= minimumPlaybackSize,
-           let callback = downloadCallbacks[songId],
-           activeDownloads[songId]?.tempURL == nil {
-            // Store the temporary URL
-            activeDownloads[songId]?.tempURL = downloadTask.originalRequest?.url
-            
-            // Notify that we can start playing
-            callback(.success(downloadTask.originalRequest!.url!))
-        }
-    }
-    
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        guard let downloadTask = task as? URLSessionDownloadTask,
-              let songId = activeDownloads.first(where: { $0.value.task == downloadTask })?.key else {
-            return
-        }
-        
-        if let error = error {
-            print("Download failed: \(error)")
-            if let callback = downloadCallbacks[songId] {
-                callback(.failure(error))
-                downloadCallbacks.removeValue(forKey: songId)
-            }
-        }
-        
-        activeDownloads.removeValue(forKey: songId)
     }
     
     // Handle background session completion
-    func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
-        DispatchQueue.main.async {
-            self.backgroundCompletionHandler?()
-            self.backgroundCompletionHandler = nil
+    nonisolated func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
+        Task { @MainActor in
+            backgroundCompletionHandler?()
+            backgroundCompletionHandler = nil
         }
     }
 } 
