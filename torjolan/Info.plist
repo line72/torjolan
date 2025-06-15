@@ -10,5 +10,7 @@
 		<string>fetch</string>
 		<string>processing</string>
 	</array>
+	<key>com.apple.application-identifier</key>
+	<string>net.line72.torjolan</string>
 </dict>
 </plist>
