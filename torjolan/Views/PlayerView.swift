@@ -69,7 +69,7 @@ class AudioPlayer: NSObject, ObservableObject {
             // Update lock screen progress
             Task { @MainActor in
                 let currentTime = self.currentTime
-                let currentDuration = self.duration
+                let currentDuration = self.duration.isNaN ? 0 : self.duration
                 let center = MPNowPlayingInfoCenter.default()
                 var updatedInfo = center.nowPlayingInfo ?? [:]
                 updatedInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime
@@ -189,7 +189,8 @@ class AudioPlayer: NSObject, ObservableObject {
                 case .readyToPlay:
                     print("✓ Ready to play")
                     Task { @MainActor in
-                        self?.duration = playerItem.duration.seconds
+                        let duration = playerItem.duration.seconds
+                        self?.duration = duration.isNaN ? 0 : duration
                         self?.player?.play()
                         self?.isPlaying = true
                     }
