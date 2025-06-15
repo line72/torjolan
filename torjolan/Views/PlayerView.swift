@@ -145,8 +145,17 @@ class AudioPlayer: NSObject, ObservableObject {
             let streamResponse = try await APIService.shared.getStationStream(stationId: station.id)
             let song = Song(from: streamResponse)
             
-            await MainActor.run {
-                play(url: streamResponse.url, song: song)
+            // Try to get cached file first
+            if let cachedURL = AudioCacheManager.shared.getCachedFileURL(for: song.id) {
+                await MainActor.run {
+                    play(url: cachedURL.absoluteString, song: song)
+                }
+            } else {
+                // Download and cache the song
+                let fileURL = try await AudioCacheManager.shared.downloadAndCache(url: streamResponse.url, songId: song.id)
+                await MainActor.run {
+                    play(url: fileURL.absoluteString, song: song)
+                }
             }
         } catch {
             print("Failed to fetch next song: \(error)")
@@ -194,6 +203,10 @@ class AudioPlayer: NSObject, ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 print("✓ Media playback ended")
+                // Remove the finished song from cache
+                if let song = self?.currentSong {
+                    AudioCacheManager.shared.removeFromCache(songId: song.id)
+                }
                 Task {
                     await self?.fetchAndPlayNextSong()
                 }
