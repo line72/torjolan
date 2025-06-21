@@ -9,20 +9,20 @@ class AudioPlayer: NSObject, ObservableObject {
     private var playerTimeObserver: Any?
     private var playerItemStatusObserver: AnyCancellable?
     private var playerItemDidPlayToEndObserver: AnyCancellable?
-    
+
     @Published var isPlaying = false
     @Published var currentTime: TimeInterval = 0
     @Published var currentSong: Song?
     private var currentStation: Station?
     @Published var duration: TimeInterval = 0
     @Published var isThumbedUp = false
-    
+
     override init() {
         super.init()
         setupAudioSession()
         setupRemoteTransportControls()
     }
-    
+
     private func setupAudioSession() {
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
@@ -31,41 +31,41 @@ class AudioPlayer: NSObject, ObservableObject {
             print("❌ Failed to setup audio session: \(error)")
         }
     }
-    
+
     private func setupRemoteTransportControls() {
         let commandCenter = MPRemoteCommandCenter.shared()
-        
+
         // Enable play/pause commands
         commandCenter.playCommand.addTarget { [weak self] event in
             self?.player?.play()
             self?.isPlaying = true
             return .success
         }
-        
+
         commandCenter.pauseCommand.addTarget { [weak self] event in
             self?.player?.pause()
             self?.isPlaying = false
             return .success
         }
-        
+
         // Disable next/previous track commands
         commandCenter.nextTrackCommand.isEnabled = false
         commandCenter.previousTrackCommand.isEnabled = false
     }
-    
+
     private func setupTimeObserver() {
         // Remove existing observer if any
         if let observer = playerTimeObserver {
             player?.removeTimeObserver(observer)
             playerTimeObserver = nil
         }
-        
+
         // Create new observer
         let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         playerTimeObserver = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
             guard let self = self else { return }
             self.currentTime = time.seconds
-            
+
             // Update lock screen progress
             if var nowPlayingInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo {
                 nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = self.currentTime
@@ -74,18 +74,18 @@ class AudioPlayer: NSObject, ObservableObject {
             }
         }
     }
-    
+
     func seek(to time: TimeInterval) {
         let cmTime = CMTime(seconds: time, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         player?.seek(to: cmTime)
-        
+
         // Update lock screen progress
         if var nowPlayingInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo {
             nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = time
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
         }
     }
-    
+
     private func updateNowPlayingInfo(for song: Song) {
         var nowPlayingInfo: [String: Any] = [
             MPMediaItemPropertyTitle: song.title,
@@ -95,7 +95,7 @@ class AudioPlayer: NSObject, ObservableObject {
             MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
             MPMediaItemPropertyPlaybackDuration: duration
         ]
-        
+
         // Load album artwork asynchronously if available
         if let coverUrlString = song.cover_url, let coverUrl = URL(string: coverUrlString) {
             Task {
@@ -116,43 +116,63 @@ class AudioPlayer: NSObject, ObservableObject {
                 }
             }
         }
-        
+
         // Set the info immediately, artwork will be updated asynchronously
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
     }
-    
+
     func startPlayingStation(_ station: Station) {
         // Stop any existing playback
         stop()
-        
+
         currentStation = station
         Task {
             await fetchAndPlayNextSong()
         }
     }
-    
+
     func startPlayingNewStation(_ stationResponse: CreateStationResponse) {
         currentStation = Station(id: stationResponse.station.id, name: stationResponse.station.name)
         let song = Song(from: stationResponse.track)
-        
-        play(url: stationResponse.track.url, song: song)
+
+        do {
+            let fileURL = try await AudioCacheManager.shared.download(
+              songId: song.id,
+              url: URL(string: stationResponse.track.url)!
+            )
+            
+            await MainActor.run {
+                play(url: fileURL, song: song)
+            }
+        } catch {
+            print("Failed to cache audio: $error)")
+        }
     }
-    
+
     private func fetchAndPlayNextSong() async {
         guard let station = currentStation else { return }
-        
+
         do {
             let streamResponse = try await APIService.shared.getStationStream(stationId: station.id)
             let song = Song(from: streamResponse)
-            
-            await MainActor.run {
-                play(url: streamResponse.url, song: song)
+
+            do {
+                let fileURL = try await AudioCacheManager.shared.download(
+                    songId: song.id,
+                    url: URL(string: streamResponse.url)!
+                )
+
+                await MainActor.run {
+                    play(url: fileURL, song: song)
+                }
+            } catch {
+                print("Failed to cache audio: $error)")
             }
         } catch {
-            print("Failed to fetch next song: \(error)")
+            print("Failed to fetch next song: $error)")
         }
     }
-    
+
     func play(url: String, song: Song) {
         print("Attempting to play URL: \(url)")
 
@@ -160,15 +180,15 @@ class AudioPlayer: NSObject, ObservableObject {
             print("❌ Failed to create URL from string: \(url)")
             return
         }
-        
+
         stop()
-        
+
         currentSong = song
         isThumbedUp = false  // Reset thumbs up state for new song
-        
+
         let playerItem = AVPlayerItem(url: audioURL)
         player = AVPlayer(playerItem: playerItem)
-        
+
         // Observe player item status
         playerItemStatusObserver = playerItem.publisher(for: \.status)
             .receive(on: DispatchQueue.main)
@@ -188,7 +208,7 @@ class AudioPlayer: NSObject, ObservableObject {
                     break
                 }
             }
-        
+
         // Observe player item end
         playerItemDidPlayToEndObserver = NotificationCenter.default.publisher(for: .AVPlayerItemDidPlayToEndTime)
             .receive(on: DispatchQueue.main)
@@ -198,11 +218,11 @@ class AudioPlayer: NSObject, ObservableObject {
                     await self?.fetchAndPlayNextSong()
                 }
             }
-        
+
         setupTimeObserver()
         updateNowPlayingInfo(for: song)
     }
-    
+
     func togglePlayPause() {
         if isPlaying {
             print("⏸️ Pausing playback")
@@ -212,14 +232,14 @@ class AudioPlayer: NSObject, ObservableObject {
             player?.play()
         }
         isPlaying.toggle()
-        
+
         // Update playback rate in now playing info
         if var nowPlayingInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo {
             nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
         }
     }
-    
+
     func stop() {
         print("⏹️ Stopping playback")
         player?.pause()
@@ -232,11 +252,11 @@ class AudioPlayer: NSObject, ObservableObject {
         duration = 0
         currentSong = nil
         isThumbedUp = false
-        
+
         // Clear now playing info when stopping
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
-    
+
     deinit {
         stop()
     }
@@ -250,7 +270,7 @@ struct PlayerView: View {
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @State private var isSeeking = false
     @State private var seekTime: TimeInterval = 0
-    
+
     var body: some View {
         GeometryReader { geometry in
             ScrollView {
@@ -279,7 +299,7 @@ struct PlayerView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .shadow(radius: 10)
                     .padding()
-                    
+
                     // Song Info - Fixed height section
                     VStack(spacing: 8) {
                         Text(audioPlayer.currentSong?.title ?? "Loading...")
@@ -288,14 +308,14 @@ struct PlayerView: View {
                             .lineLimit(1)
                             .truncationMode(.tail)
                             .frame(maxWidth: .infinity, alignment: .center)
-                        
+
                         Text(audioPlayer.currentSong?.artist ?? " ")  // Use space to maintain height
                             .font(.title3)
                             .foregroundColor(.secondary)
                             .lineLimit(1)
                             .truncationMode(.tail)
                             .frame(maxWidth: .infinity, alignment: .center)
-                        
+
                         if let album = audioPlayer.currentSong?.album {
                             Text(album)
                                 .font(.subheadline)
@@ -311,7 +331,7 @@ struct PlayerView: View {
                     }
                     .padding(.horizontal)
                     .frame(height: 100)  // Fixed height for song info section
-                    
+
                     // Time Slider
                     VStack(spacing: 4) {
                         Slider(
@@ -330,7 +350,7 @@ struct PlayerView: View {
                             }
                         }
                         .disabled(audioPlayer.duration == 0)
-                        
+
                         HStack {
                             Text(formatTime(audioPlayer.currentTime))
                                 .font(.caption)
@@ -342,9 +362,9 @@ struct PlayerView: View {
                         }
                     }
                     .padding(.horizontal)
-                    
+
                     Spacer()
-                    
+
                     // Controls - Fixed at bottom
                     HStack(spacing: 40) {
                         Button(action: {
@@ -356,14 +376,14 @@ struct PlayerView: View {
                                 .font(.title)
                                 .foregroundColor(.red)
                         }
-                        
+
                         Button(action: {
                             audioPlayer.togglePlayPause()
                         }) {
                             Image(systemName: audioPlayer.isPlaying ? "pause.circle.fill" : "play.circle.fill")
                                 .font(.system(size: 64))
                         }
-                        
+
                         Button(action: {
                             Task {
                                 try? await thumbsUp()
@@ -403,7 +423,7 @@ struct PlayerView: View {
             }
         }
     }
-    
+
     private func thumbsUp() async throws {
         guard let song = audioPlayer.currentSong else { return }
         let success = try await APIService.shared.thumbsUp(stationId: station.id, songId: song.id)
@@ -411,7 +431,7 @@ struct PlayerView: View {
             audioPlayer.isThumbedUp = true
         }
     }
-    
+
     private func thumbsDown() async throws {
         guard let song = audioPlayer.currentSong else { return }
         let success = try await APIService.shared.thumbsDown(stationId: station.id, songId: song.id)
@@ -422,7 +442,7 @@ struct PlayerView: View {
             audioPlayer.startPlayingStation(station)
         }
     }
-    
+
     private func formatTime(_ time: TimeInterval) -> String {
         let minutes = Int(time) / 60
         let seconds = Int(time) % 60
@@ -438,4 +458,4 @@ struct PlayerView: View {
             currentSong: nil
         ))
     }
-} 
+}
