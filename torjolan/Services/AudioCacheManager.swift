@@ -6,6 +6,9 @@ class AudioCacheManager {
     
     // Maximum cache size in bytes (500MB)
     private let maxCacheSize: Int64 = 500 * 1024 * 1024
+
+    // Minimum data we need to start playing in bytes (2k)
+    private let minPlaySize: Int64 = 2048
     
     // Directory for caching audio files
     private let cacheDirectory: URL
@@ -56,7 +59,7 @@ class AudioCacheManager {
                     let values = try fileURL.resourceValues(forKeys: [.fileSizeKey])
                     let fileSize = values.fileSize ?? 0
                     
-                    if fileSize >= 2048 {
+                    if fileSize >= minPlaySize {
                         continuation.resume(returning: fileURL)
                         return
                     }
@@ -183,7 +186,7 @@ class AudioCacheManager {
     
     // Check if we have enough data to start playing
     private func checkReadyToPlay(for songId: String, at bytesWritten: Int64) {
-        guard bytesWritten >= 2048, 
+        guard bytesWritten >= minPlaySize, 
               let task = downloadTasks[songId], 
               let fileURL = cachedURL(for: songId) else {
             return
@@ -205,7 +208,7 @@ class AudioCacheManager {
             let fileSize = values.fileSize ?? 0
             
             // Only proceed if we have at least 2KB
-            guard fileSize >= 2048 else {
+            guard fileSize >= minPlaySize else {
                 return
             }
             
