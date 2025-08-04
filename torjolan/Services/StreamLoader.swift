@@ -1,6 +1,6 @@
 import AVFoundation
 
-final class StreamLoader: NSObject {
+public final class StreamLoader: NSObject {
     private let queue = DispatchQueue(label: "net.line72.torjolan.streamloader")
     private var dataQueue = Data()
     private var pendingRequests = [AVAssetResourceLoadingRequest]()
@@ -39,7 +39,7 @@ final class StreamLoader: NSObject {
 
 // MARK: - AVAssetResourceLoaderDelegate
 extension StreamLoader: AVAssetResourceLoaderDelegate {
-    func resourceLoader(
+    public func resourceLoader(
         _ resourceLoader: AVAssetResourceLoader,
         shouldWaitForLoadingOfRequestedResource loadingRequest: AVAssetResourceLoadingRequest
     ) -> Bool {

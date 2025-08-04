@@ -30,22 +30,42 @@ public actor DownloadCacheManager {
 
     // MARK: Public interface
     @discardableResult
-    public func queue(songId: String, url: URL) -> URL {
+    public func queue(songId: String, url: URL) async -> StreamLoader {
         let dest = destinationURL(for: songId, remoteURL: url)
         touchFileAccessDate(dest)
 
         if !(isFileComplete(dest) ?? false) &&
             !pending.contains(where: { $0.songId == songId }) {
 
-            pending.append(DownloadRequest(songId: songId, remote: url, streamLoader: nil))
+            // do a HEAD on the request, we need some metadata
+            let meta0  = FileMeta(remoteURL: url)
+            let meta = await metaWithHeadInfo(meta0)
+            try? writeMeta(meta, for: dest)
+
+            let streamLoader = StreamLoader(contentType: meta.contentType ?? "audio/mpeg", contentSize: Int64(meta.contentLength ?? 0))
+            pending.append(DownloadRequest(songId: songId, remote: url, streamLoader: streamLoader))
             scheduleWorkIfNeeded()
+
+            return streamLoader
+        } else {
+            let meta  = (try? readMeta(for: dest)) ?? FileMeta(remoteURL: url)
+            let streamLoader = StreamLoader(contentType: meta.contentType ?? "audio/mpeg", contentSize: Int64(meta.contentLength ?? 0))
+
+            // TODO: open up the file
+
+            // TODO: dump its data into the streamLoader
+
+            // Signal all the data is there
+            streamLoader.signalEndOfStream()
+            
+            return streamLoader
+            
         }
-        return dest
     }
 
-    public func urlFor(songId: String) -> URL {
-        destinationURL(for: songId, remoteURL: nil)
-    }
+    // public func urlFor(songId: String) -> StreamLoader {
+    //     destinationURL(for: songId, remoteURL: nil)
+    // }
 
     public func remove(songId: String) {
         let url = destinationURL(for: songId, remoteURL: nil)
@@ -85,6 +105,8 @@ public actor DownloadCacheManager {
         var meta  = (try? readMeta(for: dest)) ?? FileMeta(remoteURL: request.remote)
 
         // If we don't have an expected size yet, perform a HEAD to fetch it.
+        // This _shouldn't_ happen, as we always do a HEAD request when an item
+        //  is first queued
         if meta.contentLength == nil {
             meta = await metaWithHeadInfo(meta)
             try? writeMeta(meta, for: dest)
@@ -263,6 +285,6 @@ public actor DownloadCacheManager {
 }
 
 // MARK: - Private helpers / models
-private struct DownloadRequest { let songId: String; let remote: URL; let streamLoader: StreamLoader? }
+private struct DownloadRequest { let songId: String; let remote: URL; let streamLoader: StreamLoader }
 private struct FileStat { let url: URL; let size: UInt64; let accessDate: Date }
 private extension String { var nonEmpty: String? { isEmpty ? nil : self } }
