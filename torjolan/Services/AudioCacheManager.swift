@@ -1,6 +1,6 @@
 import Foundation
 
-class AudioCacheManager {
+class AudioCacheManager: NSObject {
     // Shared instance for singleton access
     static let shared = AudioCacheManager()
     
@@ -11,7 +11,7 @@ class AudioCacheManager {
     private let minPlaySize: Int64 = 2048
     
     // Directory for caching audio files
-    private let cacheDirectory: URL
+    private var cacheDirectory: URL
     
     // Track ongoing downloads
     private var downloadTasks = [String: DownloadTask]()
@@ -24,20 +24,27 @@ class AudioCacheManager {
     
     // MARK: - Initializer
     
-    private init() {
+    private override init() {
         // Create cache directory in Caches folder
         let cachesURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         cacheDirectory = cachesURL.appendingPathComponent("audio_cache")
+        
+        super.init()
         
         // Create directory if it doesn't exist
         do {
             try FileManager.default.createDirectory(at: cacheDirectory, 
                                                     withIntermediateDirectories: true, 
                                                     attributes: nil)
-            // Set attributes to prevent iCloud backup
+        } catch {
+            print("Failed to create cache directory: \(error)")
+        }
+        
+        // Set attributes to prevent iCloud backup
+        do {
             try setNoiCloudBackup()
         } catch {
-            print("Failed to create cache directory: $error)")
+            print("Failed to set iCloud backup attributes: \(error)")
         }
     }
     
@@ -143,10 +150,10 @@ class AudioCacheManager {
         do {
             if FileManager.default.fileExists(atPath: fileURL.path) {
                 try FileManager.default.removeItem(at: fileURL)
-                print("Successfully deleted cached file: $fileURL)")
+                print("Successfully deleted cached file: \(fileURL)")
             }
         } catch {
-            print("Failed to delete cached file: $error)")
+            print("Failed to delete cached file: \(error)")
         }
     }
     
@@ -162,7 +169,7 @@ class AudioCacheManager {
     // MARK: - Private Methods
     
     private func cachedURL(for songId: String) -> URL {
-        return cacheDirectory.appendingPathComponent("$songId).audio")
+        return cacheDirectory.appendingPathComponent("\(songId).audio")
     }
     
     private func startDownload(_ download: Download, task: DownloadTask) {
@@ -173,12 +180,11 @@ class AudioCacheManager {
         let session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
         
         // Start request
-        let task = session.downloadTask(with: download.url)
-        task.taskDescription = download.songId
+        let downloadTask = session.downloadTask(with: download.url)
+        downloadTask.taskDescription = download.songId
         
         // Store the download info and start
-        download.task = task
-        task.resume()
+        downloadTask.resume()
         
         // Add to active downloads
         downloadTasks[download.songId] = task
@@ -187,10 +193,11 @@ class AudioCacheManager {
     // Check if we have enough data to start playing
     private func checkReadyToPlay(for songId: String, at bytesWritten: Int64) {
         guard bytesWritten >= minPlaySize, 
-              let task = downloadTasks[songId], 
-              let fileURL = cachedURL(for: songId) else {
+              let task = downloadTasks[songId] else {
             return
         }
+        
+        let fileURL = cachedURL(for: songId)
         
         // Only call readyToPlay once
         guard !task.hasFiredReadyToPlay else {
@@ -251,7 +258,7 @@ class AudioCacheManager {
     
     private func activeDownloadsCount() -> Int {
         return downloadTasks.filter { task in
-            task.value.task.state == .running || task.value.task.state == .suspended
+            task.value.hasFiredReadyToPlay == false
         }.count
     }
     
@@ -261,18 +268,18 @@ class AudioCacheManager {
                 // Get all files in cache
                 let contents = try FileManager.default.contentsOfDirectory(
                     at: self.cacheDirectory, 
-                    includingPropertiesForKeys: [.fileSizeKey, .fileModificationDateKey],
+                    includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey],
                     options: .skipsHiddenFiles
                 )
                 
                 // Sort files by modification date (oldest first)
                 let sortedFiles = contents.sorted {
                     (url1, url2) -> Bool in
-                    let values1 = try? url1.resourceValues(forKeys: [.fileModificationDateKey])
-                    let date1 = values1?.fileModificationDate
+                    let values1 = try? url1.resourceValues(forKeys: [.contentModificationDateKey])
+                    let date1 = values1?.contentModificationDate
                     
-                    let values2 = try? url2.resourceValues(forKeys: [.fileModificationDateKey])
-                    let date2 = values2?.fileModificationDate
+                    let values2 = try? url2.resourceValues(forKeys: [.contentModificationDateKey])
+                    let date2 = values2?.contentModificationDate
                     
                     return date1?.compare(date2!) == .orderedAscending
                 }
@@ -307,20 +314,20 @@ class AudioCacheManager {
                             break
                         }
                     } catch {
-                        print("Failed to delete file $fileURL): $error)")
+                        print("Failed to delete file \(fileURL): \(error)")
                     }
                 }
                 
                 completion()
             } catch {
-                print("Failed to cleanup cache: $error)")
+                print("Failed to cleanup cache: \(error)")
                 completion()
             }
         }
     }
     
     private func setNoiCloudBackup() throws {
-        let resourceValues = URLResourceValues()
+        var resourceValues = URLResourceValues()
         resourceValues.isExcludedFromBackup = true
         try cacheDirectory.setResourceValues(resourceValues)
     }
@@ -339,7 +346,7 @@ class AudioCacheManager {
 extension AudioCacheManager: URLSessionDelegate {
     func urlSession(_ session: URLSession, didBecomeInvalidWithError error: Error?) {
         if let error = error {
-            print("URL Session invalidated: $error)")
+            print("URL Session invalidated: \(error)")
         }
     }
 }
@@ -349,19 +356,19 @@ extension AudioCacheManager: URLSessionDelegate {
 extension AudioCacheManager: URLSessionDownloadDelegate {
     func urlSession(_ session: URLSession, 
                     downloadTask: URLSessionDownloadTask, 
-                    didFinishDownloading location: URL) {
+                    didFinishDownloadingTo location: URL) {
         guard let songId = downloadTask.taskDescription else {
             print("Download finished without song ID")
             return
         }
         
         guard let download = downloadTasks[songId] else {
-            print("No download task found for song ID: $songId)")
+            print("No download task found for song ID: \(songId)")
             return
         }
         
         // Move file to cache location
-        let destinationURL = download.fileURL
+        let destinationURL = cachedURL(for: songId)
         
         do {
             // Remove existing file if it exists
@@ -385,13 +392,13 @@ extension AudioCacheManager: URLSessionDownloadDelegate {
                     handler(.failure(error))
                 }
             }
-        } finally {
-            // Remove from active downloads
-            downloadTasks.removeValue(forKey: songId)
-            
-            // Start any pending downloads
-            resumePendingDownloads()
         }
+        
+        // Remove from active downloads
+        downloadTasks.removeValue(forKey: songId)
+        
+        // Start any pending downloads
+        resumePendingDownloads()
     }
     
     func urlSession(_ session: URLSession, 

@@ -79,7 +79,6 @@ public actor DownloadCacheManager {
         var fileHandle: FileHandle? = nil
         defer {
             try? fileHandle?.close()
-            await finishDownload()
         }
 
         let dest  = destinationURL(for: request.songId, remoteURL: request.remote)
@@ -109,7 +108,7 @@ public actor DownloadCacheManager {
 
             for try await chunk in bytes {
                 try Task.checkCancellation()
-                try fileHandle?.write(contentsOf: chunk)
+                try fileHandle?.write(contentsOf: Data([chunk]))
             }
             fileHandle = nil
 
@@ -126,6 +125,7 @@ public actor DownloadCacheManager {
             os_log("Download failed %@: %@", request.songId, error.localizedDescription)
         }
 
+        await finishDownload()
         await pruneIfNeeded(force: false)
     }
 

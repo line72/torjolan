@@ -74,7 +74,9 @@ struct StationListView: View {
         .onChange(of: newStationResponse) { oldValue, newValue in
             if let response = newValue {
                 // Start playback
-                AudioPlayer.shared.startPlayingNewStation(response)
+                Task {
+                    await AudioPlayer.shared.startPlayingNewStation(response)
+                }
                 // Set the active station for navigation
                 activeStation = Station(id: response.station.id, name: response.station.name)
             }

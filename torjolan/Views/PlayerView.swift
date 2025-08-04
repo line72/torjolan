@@ -131,7 +131,7 @@ class AudioPlayer: NSObject, ObservableObject {
         }
     }
 
-    func startPlayingNewStation(_ stationResponse: CreateStationResponse) {
+    func startPlayingNewStation(_ stationResponse: CreateStationResponse) async {
         currentStation = Station(id: stationResponse.station.id, name: stationResponse.station.name)
         let song = Song(from: stationResponse.track)
 
@@ -142,10 +142,10 @@ class AudioPlayer: NSObject, ObservableObject {
             )
             
             await MainActor.run {
-                play(url: fileURL, song: song)
+                play(url: fileURL.absoluteString, song: song)
             }
         } catch {
-            print("Failed to cache audio: $error)")
+                            print("Failed to cache audio: \(error)")
         }
     }
 
@@ -163,13 +163,13 @@ class AudioPlayer: NSObject, ObservableObject {
                 )
 
                 await MainActor.run {
-                    play(url: fileURL, song: song)
+                    play(url: fileURL.absoluteString, song: song)
                 }
             } catch {
-                print("Failed to cache audio: $error)")
+                print("Failed to cache audio: \(error)")
             }
         } catch {
-            print("Failed to fetch next song: $error)")
+                            print("Failed to fetch next song: \(error)")
         }
     }
 
