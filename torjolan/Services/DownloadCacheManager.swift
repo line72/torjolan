@@ -7,9 +7,10 @@ import os.log
 
 // MARK: - Public API
 public actor DownloadCacheManager {
+    static let shared = DownloadCacheManager()
 
     // MARK: Init / configuration
-    public init(
+    private init(
         maxConcurrent: Int = 2,
         cacheSizeLimitBytes: UInt64 = 500 * 1_024 * 1_024  // 500 MB
     ) {

@@ -136,16 +136,16 @@ class AudioPlayer: NSObject, ObservableObject {
         let song = Song(from: stationResponse.track)
 
         do {
-            let fileURL = try await AudioCacheManager.shared.download(
+            let streamLoader = await DownloadCacheManager.shared.queue(
               songId: song.id,
               url: URL(string: stationResponse.track.url)!
             )
             
             await MainActor.run {
-                play(url: fileURL.absoluteString, song: song)
+                play(streamLoader: streamLoader, song: song)
             }
         } catch {
-                            print("Failed to cache audio: \(error)")
+            print("Failed to cache audio: \(error)")
         }
     }
 
@@ -157,50 +157,49 @@ class AudioPlayer: NSObject, ObservableObject {
             let song = Song(from: streamResponse)
 
             do {
-                let fileURL = try await AudioCacheManager.shared.download(
+                let streamLoader = await DownloadCacheManager.shared.queue(
                     songId: song.id,
                     url: URL(string: streamResponse.url)!
                 )
 
                 await MainActor.run {
-                    play(url: fileURL.absoluteString, song: song)
+                    play(streamLoader: streamLoader, song: song)
                 }
             } catch {
                 print("Failed to cache audio: \(error)")
             }
         } catch {
-                            print("Failed to fetch next song: \(error)")
+            print("Failed to fetch next song: \(error)")
         }
     }
 
-    func play(url: String, song: Song) {
-        print("Attempting to play URL: \(url)")
-
-        guard let audioURL = URL(string: url) else {
-            print("❌ Failed to create URL from string: \(url)")
-            return
-        }
+    func play(streamLoader: StreamLoader, song: Song) {
+        print("Attempting to play URL: \(song.id)")
 
         stop()
 
         currentSong = song
         isThumbedUp = false  // Reset thumbs up state for new song
 
-        let playerItem = AVPlayerItem(url: audioURL)
-        player = AVPlayer(playerItem: playerItem)
+        guard let url = URL(string: "torjolan://\(song.id)") else {
+            // Handle invalid URL (log error, show alert, etc.)
+            return
+        }
+        player = streamLoader.setupAsset(url)
+        let playerItem = player?.currentItem!
 
         // Observe player item status
-        playerItemStatusObserver = playerItem.publisher(for: \.status)
+        playerItemStatusObserver = playerItem?.publisher(for: \.status)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] status in
                 switch status {
                 case .readyToPlay:
                     print("✓ Ready to play")
-                    self?.duration = playerItem.duration.seconds
+                    self?.duration = playerItem?.duration.seconds ?? 0.0
                     self?.player?.play()
                     self?.isPlaying = true
                 case .failed:
-                    print("❌ Player item failed: \(playerItem.error?.localizedDescription ?? "unknown error")")
+                    print("❌ Player item failed: \(playerItem?.error?.localizedDescription ?? "unknown error")")
                     Task {
                         await self?.fetchAndPlayNextSong()
                     }

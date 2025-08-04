@@ -46,10 +46,6 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
         queue.async {
             // ✅ 1. HANDLE METADATA FIRST (NON-NEGOTIABLE)
             if let info = loadingRequest.contentInformationRequest {
-                info.contentType = self.contentType
-                info.contentLength = self.contentSize
-                info.isByteRangeAccessSupported = true
-                
                 // Set content information
                 info.contentType = self.contentType
                 info.contentLength = self.contentSize
