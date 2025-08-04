@@ -37,7 +37,7 @@ public actor DownloadCacheManager {
         if !(isFileComplete(dest) ?? false) &&
             !pending.contains(where: { $0.songId == songId }) {
 
-            pending.append(DownloadRequest(songId: songId, remote: url))
+            pending.append(DownloadRequest(songId: songId, remote: url, streamLoader: nil))
             scheduleWorkIfNeeded()
         }
         return dest
@@ -147,6 +147,7 @@ public actor DownloadCacheManager {
     // MARK: Metadata read / write
     private struct FileMeta: Codable {
         var contentLength: UInt64?
+        var contentType: String?
         var etag: String?
         var complete: Bool = false
         var lastValidated: Date?
@@ -178,6 +179,7 @@ public actor DownloadCacheManager {
                 if let len = http.value(forHTTPHeaderField: "Content-Length"),
                    let n = UInt64(len) { updated.contentLength = n }
                 if let tag = http.value(forHTTPHeaderField: "ETag") { updated.etag = tag }
+                if let contentType = http.value(forHTTPHeaderField: "Content-Type") { updated.contentType = contentType }
             }
         } catch { /* ignore */ }
         return updated
@@ -261,6 +263,6 @@ public actor DownloadCacheManager {
 }
 
 // MARK: - Private helpers / models
-private struct DownloadRequest { let songId: String; let remote: URL }
+private struct DownloadRequest { let songId: String; let remote: URL; let streamLoader: StreamLoader? }
 private struct FileStat { let url: URL; let size: UInt64; let accessDate: Date }
 private extension String { var nonEmpty: String? { isEmpty ? nil : self } }
