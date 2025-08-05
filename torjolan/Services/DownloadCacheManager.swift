@@ -129,12 +129,23 @@ public actor DownloadCacheManager {
             fileHandle = try FileHandle(forWritingTo: dest)
             try fileHandle?.seekToEnd()
 
-            for try await chunk in bytes {
+            let bufferSize = 16 * 1024
+            var buffer = Data(capacity: bufferSize)
+            for try await byte in bytes {
                 try Task.checkCancellation()
-                try fileHandle?.write(contentsOf: Data([chunk]))
+                buffer.append(byte)
+
+                if buffer.count >= bufferSize {
+                    try fileHandle?.write(contentsOf: buffer)
+                    request.streamLoader.appendData(buffer)
+                    buffer.removeAll(keepingCapacity: true)
+                }
             }
             fileHandle = nil
 
+            // signal end of stream
+            request.streamLoader.signalEndOfStream()
+            
             // Mark complete if sizes match (or server didn't specify length).
             let finalSize = localFileSize(dest)
             if meta.contentLength == nil || finalSize == meta.contentLength {

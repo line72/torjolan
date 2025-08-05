@@ -183,8 +183,10 @@ class AudioPlayer: NSObject, ObservableObject {
 
         guard let url = URL(string: "torjolan://\(song.id)") else {
             // Handle invalid URL (log error, show alert, etc.)
+            print("INVALID URL!!!")
             return
         }
+        print("Setting up player for url \(url)")
         player = streamLoader.setupAsset(url)
         let playerItem = player?.currentItem!
 
@@ -204,6 +206,7 @@ class AudioPlayer: NSObject, ObservableObject {
                         await self?.fetchAndPlayNextSong()
                     }
                 default:
+                    print("Status changed to unknown \(status)")
                     break
                 }
             }
