@@ -110,6 +110,7 @@ public actor DownloadCacheManager {
     private let session: URLSession
     private var activeCount = 0
     private var pending: [DownloadRequest] = []
+    private let appLog = OSLog(subsystem: "net.line72.torjolan", category: "DownloadCacheManager")
 
     // MARK: - Queue processing
     private func scheduleWorkIfNeeded() {
@@ -174,7 +175,8 @@ public actor DownloadCacheManager {
             }
             // Flush remaining bytes in buffer
             if !buffer.isEmpty {
-                print("DownloadCacheManager:: sending last few bytes of buffer: \(buffer.count)")
+                os_log("Sending last few bytes of buffer: %d", log: self.appLog, type: .debug, buffer.count)
+                
                 try fileHandle?.write(contentsOf: buffer)
                 request.streamLoader.appendData(buffer)
             }
@@ -186,7 +188,7 @@ public actor DownloadCacheManager {
             // Mark complete if sizes match (or server didn't specify length).
             let finalSize = localFileSize(dest)
             if (finalSize != meta.contentLength) {
-                print("❌❌❌ finalSize of download is \(finalSize), but expected \(meta.contentLength ?? 0)")
+                os_log("❌ final size of download is %d, but expected %d", log: self.appLog, type: .warning, finalSize, meta.contentLength)
             }
             if meta.contentLength == nil || finalSize == meta.contentLength {
                 meta.complete = true
@@ -196,7 +198,7 @@ public actor DownloadCacheManager {
             touchFileAccessDate(dest)
 
         } catch {
-            os_log("❌ Download failed %@: %@", request.songId, error.localizedDescription)
+            os_log("❌ Download failed %@: %@", log: self.appLog, type: .error, request.songId, error.localizedDescription)
             print("❌ ========== DOWNLOAD FAILED ==========")
             print("❌ Song ID: \(request.songId)")
             print("❌ Remote URL: \(request.remote)")

@@ -1,5 +1,6 @@
 import AVFoundation
 import UniformTypeIdentifiers
+import os.log
 
 public final class StreamLoader: NSObject {
     private let queue = DispatchQueue(label: "net.line72.torjolan.streamloader")
@@ -8,6 +9,7 @@ public final class StreamLoader: NSObject {
     private let contentType: String
     private let utiContentType: String
     private let contentSize: Int64
+    private let appLog = OSLog(subsystem: "net.line72.torjolan", category: "StreamLoader")
 
     init(contentType: String, contentSize: Int64) {
         self.contentType = contentType
@@ -43,7 +45,7 @@ public final class StreamLoader: NSObject {
     }
 
     func appendData(_ data: Data) {
-        //print("StreamLoader::appendData")
+        os_log("appendData", log: self.appLog, type: .debug)
         queue.async {
             self.dataQueue.append(data)
             // require 50K of data before processing
@@ -54,7 +56,7 @@ public final class StreamLoader: NSObject {
     }
 
     func signalEndOfStream() {
-        print("\(ObjectIdentifier(self)) StreamLoader::signalEndOfStream \(self.dataQueue.count)|\(self.contentSize)")
+        os_log("signalEndOfStream: %d|%d", log: self.appLog, type: .info, self.dataQueue.count, self.contentSize)
         queue.async {
             self.processPendingRequests() // Drain final data
             // Do not forcibly finish pending requests here. Allow any late
@@ -69,13 +71,17 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
         _ resourceLoader: AVAssetResourceLoader,
         shouldWaitForLoadingOfRequestedResource loadingRequest: AVAssetResourceLoadingRequest
     ) -> Bool {
-        print("\(ObjectIdentifier(self)) StreamLoader::resourceLoader")
-        print("📋 Request URL: \(loadingRequest.request.url?.absoluteString ?? "nil")")
-        print("📋 Request Headers: \(loadingRequest.request.allHTTPHeaderFields ?? [:])")
+        os_log("resourceLoader: URL=%@\nHeaders=%@", log: self.appLog, type: .info,
+               loadingRequest.request.url?.absoluteString,
+               loadingRequest.request.allHTTPHeaderFields
+        )
 
         // ✅ 1. Populate metadata if requested (do not finish yet if there is also a dataRequest)
         if let info = loadingRequest.contentInformationRequest {
-            print("StreamLoader -> returning meta \(self.contentType)|\(self.contentSize)")
+            os_log("Returning meta for a contentInformationRequest: contentType=%@, contentSize=%@",
+                   log: self.appLog, type: .debug,
+                   self.contentType, self.contentSize)
+
             // Set content information expected by AVFoundation (UTI, not MIME)
             info.contentType = self.utiContentType
             info.contentLength = self.contentSize
@@ -84,9 +90,12 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
 
         // ✅ 2. If there's a dataRequest, queue it and start fulfilling
         if loadingRequest.dataRequest != nil {
-            print("StreamLoader -> queuing request \(ObjectIdentifier(loadingRequest))")
+            os_log("queuing new request: %@", log: self.appLog, type: .debug,
+                   ObjectIdentifier(loadingRequest))
+
             self.pendingRequests.append(loadingRequest)
-            print("  # pendingRequests \(self.pendingRequests.count)")
+
+            os_log("Number of pending requests=: %d", log: self.appLog, type: .debug, self.pendingRequests.count)
             if self.dataQueue.count > 0 {
                 self.processPendingRequests()
             }
@@ -95,13 +104,13 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
 
         // ✅ 3. If metadata-only request, we can finish now
         if loadingRequest.contentInformationRequest != nil {
+            os_log("contentInformationRequest is complete", log: self.appLog, type: .debug)
+            
             loadingRequest.finishLoading()
             return true
         }
 
-        print("❌ UNHANDLED REQUEST TYPE")
-        print("❌ ContentInformationRequest: \(loadingRequest.contentInformationRequest != nil)")
-        print("❌ DataRequest: \(loadingRequest.dataRequest != nil)")
+        os_log("❌ Unhandled Request Type, no contentInformationRequest or dataRequest!", log: self.appLog, type: .warning)
         return false
     }
     
@@ -109,19 +118,25 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
         guard !pendingRequests.isEmpty else { return }
         guard dataQueue.count != 0 else { return }
 
-        //print("StreamLoader::processingPendingRequests \(pendingRequests.count)")
+        os_log("processPendingRequests: count=%d", log: self.appLog, type: .debug, self.pendingRequests.count)
         
         var index = 0
         while (index < pendingRequests.count) {
-            //print("StreamLoader -> process pendingRequest")
             let request = pendingRequests[index]
             guard let dataRequest = request.dataRequest else {
-                //print("dataRequest is NULL? \(ObjectIdentifier(request))")
-                index+=1
+                // !mwd - It shouldn't be possible to get here
+                //  since we never should have added this to our pending request
+                //  if dataRequest was nil
+                // Just remove this from our list
+                os_log("❌ pendingRequest is missing a dataRequest!", log: self.appLog, type: .warning)
+
+                pendingRequests.remove(at: index)
+                
                 continue
             }
 
-            //print("Working on pendingRequest \(ObjectIdentifier(request))")
+            os_log("processing pendingRequest(%d): %@", log: self.appLog, type: .debug, index, ObjectIdentifier(request))
+
             while true {
                 // Never exceed requestedLength
                 var requested = dataRequest.requestedLength
@@ -130,14 +145,14 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
                 let requestedOffset = Int(dataRequest.requestedOffset)
                 // currentOffset is where we currently are at relative
                 // to the START OF THE FILE. This will start at the
-                // same value as requestedOffset!
+                // same value as requestedOffset! It is NOT an offset
+                // from the requestedOffset!
                 let currentOffset = Int(dataRequest.currentOffset)
 
                 // Handle requests that want data to the end of resource
                 if dataRequest.requestsAllDataToEndOfResource, contentSize > 0 {
                     let newRequested = max(requested, Int(contentSize) - requestedOffset)
                     if (newRequested != requested) {
-                        //print("!!!!! EndOfResource: \(requested) vs \(newRequested)")
                         requested = newRequested
                     }
                 }
@@ -146,11 +161,19 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
                 let maxBoundary = min(dataQueue.count, requestedOffset + requested)
                 let available = maxBoundary - start
 
-                // print("...\(ObjectIdentifier(request)): \(requested)|\(requestedOffset)|\(currentOffset)|\(start)|\(maxBoundary)|\(available)")
+                os_log("pendingRequest(%d): %@: requested=%d, requestedOffset=%d, currentOffset=%d, start=%d, maxBoundary=%d, available=%d",
+                       log: self.appLog, type: .debug,
+                       index, ObjectIdentifier(request),
+                       requested, requestedOffset, currentOffset,
+                       start, maxBoundary, available)
 
                 if available <= 0 {
                     // Not enough data yet
-                    // print("Not enough data for request \(ObjectIdentifier(request))")
+                    os_log("pendingRequest(%d): %@: Not enough data for request", log: self.appLog, type: .debug,
+                           index, ObjectIdentifier(request))
+
+                    // remove on to the next request as it might have
+                    // a different range that we do have data for
                     index += 1
                     break
                 }
@@ -158,39 +181,44 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
                 let end = start + available
                 let chunk = dataQueue[start..<end]
 
-                // print("currentOffset before response: \(dataRequest.currentOffset) with chunk of size \(chunk.count)")
+                // Respond with as much data as we have in the range
                 dataRequest.respond(with: chunk)
-                // print("currentOffset after response: \(dataRequest.currentOffset)")
 
                 // Check if request is satisfied
                 let newCurrentOffset = Int(dataRequest.currentOffset)
                 let totalSent = newCurrentOffset
-                // print("comparing \(totalSent) >= \(requested)")
                 if totalSent >= requested {
-                    print("\(ObjectIdentifier(self)) pendingRequest is complete!!! \(ObjectIdentifier(request))")
+                    os_log("pendingRequest(%d): %@: is complete!", log: self.appLog, type: .info, index, ObjectIdentifier(request))
+
+                    // Let the request know it is all done
                     request.finishLoading()
+
+                    // Remove this from anything we'll process
                     pendingRequests.remove(at: index) // remove correct pending request
+                    
                     break
                 }
             }
         }
 
-        // print(" <-- StreamLoader::processingPendingRequests done \(pendingRequests.count)")
+        os_log("processPendingRequests complete. Number of pendingRequests=%d", log: self.appLog, type: .debug, self.pendingRequests.count)
     }
     
     public func resourceLoader(
         _ resourceLoader: AVAssetResourceLoader,
         didCancel loadingRequest: AVAssetResourceLoadingRequest
     ) {
-        print("❌ \(ObjectIdentifier(self)) StreamLoader::resourceLoader - Request CANCELLED")
-        print("❌ Cancelled URL: \(loadingRequest.request.url?.absoluteString ?? "nil")")
+        os_log("resourceLoader didCancel: %@, url=%@", log: self.appLog, type: .info,
+               loadingRequest, loadingRequest.request.url?.absoluteString)
         
         // Remove from pending requests if it exists
         if let index = pendingRequests.firstIndex(where: { $0 === loadingRequest }) {
             let req = pendingRequests[index]
-            print("❌ Removed cancelled request from pending queue \(ObjectIdentifier(req))")
+            os_log("Removing cancelled request from queue: %@", log: self.appLog, type: .info, ObjectIdentifier(req))
+
             pendingRequests.remove(at: index)
-            print("  PendingRequest count=\(pendingRequests.count)")
+
+            os_log("Number of pending requests after cancel=%d", log: self.appLog, type: .debug, self.pendingRequests.count)
         }
     }
 }
