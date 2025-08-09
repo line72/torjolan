@@ -118,16 +118,22 @@ public actor DownloadCacheManager {
             os_log("✓ Cached %@", request.songId); return
         }
 
+        // !mwd - In the future, it would be cool to resume
+        //  where we left off, but for now, we'll just restart
+        
         // Prepare Range request if resuming.
         var req = URLRequest(url: request.remote)
-        if currentSize > 0 { req.setValue("bytes=\(currentSize)-", forHTTPHeaderField: "Range") }
+        // if currentSize > 0 { req.setValue("bytes=\(currentSize)-", forHTTPHeaderField: "Range") }
 
         do {
             let (bytes, _) = try await session.bytes(for: req)
             prepareFileIfNeeded(at: dest)
 
             fileHandle = try FileHandle(forWritingTo: dest)
-            try fileHandle?.seekToEnd()
+            // !mwd - In the future, we might resume
+            //   we'd actually need to read these bytes to
+            //   send to the StreamLoader though
+            //try fileHandle?.seekToEnd()
 
             let bufferSize = 16 * 1024
             var buffer = Data(capacity: bufferSize)
@@ -154,7 +160,9 @@ public actor DownloadCacheManager {
             
             // Mark complete if sizes match (or server didn't specify length).
             let finalSize = localFileSize(dest)
-            print("finalSize is \(finalSize)")
+            if (finalSize != meta.contentLength) {
+                print("❌❌❌ finalSize of download is \(finalSize), but expected \(meta.contentLength ?? 0)")
+            }
             if meta.contentLength == nil || finalSize == meta.contentLength {
                 meta.complete = true
             }

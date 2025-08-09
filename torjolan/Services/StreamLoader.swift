@@ -116,12 +116,12 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
             //print("StreamLoader -> process pendingRequest")
             let request = pendingRequests[index]
             guard let dataRequest = request.dataRequest else {
-                print("dataRequest is NULL? \(ObjectIdentifier(request))")
+                //print("dataRequest is NULL? \(ObjectIdentifier(request))")
                 index+=1
                 continue
             }
 
-            print("Working on pendingRequest \(ObjectIdentifier(request))")
+            //print("Working on pendingRequest \(ObjectIdentifier(request))")
             while true {
                 // Never exceed requestedLength
                 var requested = dataRequest.requestedLength
@@ -137,7 +137,7 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
                 if dataRequest.requestsAllDataToEndOfResource, contentSize > 0 {
                     let newRequested = max(requested, Int(contentSize) - requestedOffset)
                     if (newRequested != requested) {
-                        print("!!!!! EndOfResource: \(requested) vs \(newRequested)")
+                        //print("!!!!! EndOfResource: \(requested) vs \(newRequested)")
                         requested = newRequested
                     }
                 }
@@ -146,11 +146,11 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
                 let maxBoundary = min(dataQueue.count, requestedOffset + requested)
                 let available = maxBoundary - start
 
-                print("...\(ObjectIdentifier(request)): \(requested)|\(requestedOffset)|\(currentOffset)|\(start)|\(maxBoundary)|\(available)")
+                // print("...\(ObjectIdentifier(request)): \(requested)|\(requestedOffset)|\(currentOffset)|\(start)|\(maxBoundary)|\(available)")
 
                 if available <= 0 {
                     // Not enough data yet
-                    print("Not enough data for request \(ObjectIdentifier(request))")
+                    // print("Not enough data for request \(ObjectIdentifier(request))")
                     index += 1
                     break
                 }
@@ -158,14 +158,14 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
                 let end = start + available
                 let chunk = dataQueue[start..<end]
 
-                print("currentOffset before response: \(dataRequest.currentOffset) with chunk of size \(chunk.count)")
+                // print("currentOffset before response: \(dataRequest.currentOffset) with chunk of size \(chunk.count)")
                 dataRequest.respond(with: chunk)
-                print("currentOffset after response: \(dataRequest.currentOffset)")
+                // print("currentOffset after response: \(dataRequest.currentOffset)")
 
                 // Check if request is satisfied
                 let newCurrentOffset = Int(dataRequest.currentOffset)
                 let totalSent = newCurrentOffset
-                print("comparing \(totalSent) >= \(requested)")
+                // print("comparing \(totalSent) >= \(requested)")
                 if totalSent >= requested {
                     print("\(ObjectIdentifier(self)) pendingRequest is complete!!! \(ObjectIdentifier(request))")
                     request.finishLoading()
@@ -175,7 +175,7 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
             }
         }
 
-        print(" <-- StreamLoader::processingPendingRequests done \(pendingRequests.count)")
+        // print(" <-- StreamLoader::processingPendingRequests done \(pendingRequests.count)")
     }
     
     public func resourceLoader(
