@@ -48,7 +48,7 @@ public final class StreamLoader: NSObject {
         os_log("appendData", log: self.appLog, type: .debug)
         queue.async {
             self.dataQueue.append(data)
-            // require 50K of data before processing
+
             if (self.dataQueue.count > 0) {
                 self.processPendingRequests()
             }

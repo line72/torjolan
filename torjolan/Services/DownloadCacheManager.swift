@@ -89,10 +89,6 @@ public actor DownloadCacheManager {
         }
     }
 
-    // public func urlFor(songId: String) -> StreamLoader {
-    //     destinationURL(for: songId, remoteURL: nil)
-    // }
-
     public func remove(songId: String) {
         let url = destinationURL(for: songId, remoteURL: nil)
         try? FileManager.default.removeItem(at: url)
