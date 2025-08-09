@@ -49,18 +49,43 @@ public actor DownloadCacheManager {
 
             return streamLoader
         } else {
-            let meta  = (try? readMeta(for: dest)) ?? FileMeta(remoteURL: url)
-            let streamLoader = StreamLoader(contentType: meta.contentType ?? "audio/mpeg", contentSize: Int64(meta.contentLength ?? 0))
+            var meta  = (try? readMeta(for: dest)) ?? FileMeta(remoteURL: url)
+            let fileSize = localFileSize(dest)
+            if meta.contentLength == nil {
+                // Backfill content length from local file size for accurate metadata
+                meta.contentLength = fileSize
+                try? writeMeta(meta, for: dest)
+            }
 
-            // TODO: open up the file
+            let streamLoader = StreamLoader(
+                contentType: meta.contentType ?? "audio/mpeg",
+                contentSize: Int64(meta.contentLength ?? fileSize)
+            )
 
-            // TODO: dump its data into the streamLoader
+            // Read the cached file and feed it to the StreamLoader in chunks
+            let readURL = dest
+            Task.detached {
+                do {
+                    let handle = try FileHandle(forReadingFrom: readURL)
+                    defer { try? handle.close() }
 
-            // Signal all the data is there
-            streamLoader.signalEndOfStream()
-            
+                    let chunkSize = 64 * 1024
+                    while true {
+                        try Task.checkCancellation()
+                        if let data = try handle.read(upToCount: chunkSize), !data.isEmpty {
+                            streamLoader.appendData(data)
+                        } else {
+                            break
+                        }
+                    }
+                    streamLoader.signalEndOfStream()
+                } catch {
+                    // On error, still signal end to unblock the player
+                    streamLoader.signalEndOfStream()
+                }
+            }
+
             return streamLoader
-            
         }
     }
 
