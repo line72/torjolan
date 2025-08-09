@@ -145,8 +145,6 @@ class AudioPlayer: NSObject, ObservableObject {
             await MainActor.run {
                 play(streamLoader: streamLoader, song: song)
             }
-        } catch {
-            print("Failed to cache audio: \(error)")
         }
     }
 
@@ -166,8 +164,6 @@ class AudioPlayer: NSObject, ObservableObject {
                 await MainActor.run {
                     play(streamLoader: streamLoader, song: song)
                 }
-            } catch {
-                print("Failed to cache audio: \(error)")
             }
         } catch {
             print("Failed to fetch next song: \(error)")

@@ -48,6 +48,12 @@ public actor DownloadCacheManager {
             scheduleWorkIfNeeded()
 
             return streamLoader
+        } else if let index = pending.firstIndex(where: { $0.songId == songId }) {
+            // This item is in our pending queue,
+            // return a handle to the StreamLoader
+            //
+            // !mwd - In the future, we should move this to the front of the queue
+            return pending[index].streamLoader
         } else {
             var meta  = (try? readMeta(for: dest)) ?? FileMeta(remoteURL: url)
             let fileSize = localFileSize(dest)
@@ -144,7 +150,7 @@ public actor DownloadCacheManager {
         //  where we left off, but for now, we'll just restart
         
         // Prepare Range request if resuming.
-        var req = URLRequest(url: request.remote)
+        let req = URLRequest(url: request.remote)
         // if currentSize > 0 { req.setValue("bytes=\(currentSize)-", forHTTPHeaderField: "Range") }
 
         do {
@@ -184,7 +190,7 @@ public actor DownloadCacheManager {
             // Mark complete if sizes match (or server didn't specify length).
             let finalSize = localFileSize(dest)
             if (finalSize != meta.contentLength) {
-                os_log("❌ final size of download is %d, but expected %d", log: self.appLog, type: .warning, finalSize, meta.contentLength)
+                os_log("❌ final size of download is %d, but expected %d", log: self.appLog, type: .error, finalSize, meta.contentLength ?? 0)
             }
             if meta.contentLength == nil || finalSize == meta.contentLength {
                 meta.complete = true
