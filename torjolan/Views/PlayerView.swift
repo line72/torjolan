@@ -6,6 +6,7 @@ import Combine
 class AudioPlayer: NSObject, ObservableObject {
     static let shared = AudioPlayer()
     private var player: AVPlayer?
+    private var currentStreamLoader: StreamLoader?
     private var playerTimeObserver: Any?
     private var playerItemStatusObserver: AnyCancellable?
     private var playerItemDidPlayToEndObserver: AnyCancellable?
@@ -178,6 +179,9 @@ class AudioPlayer: NSObject, ObservableObject {
 
         stop()
 
+        // Retain the stream loader strongly so it isn't deallocated
+        currentStreamLoader = streamLoader
+
         currentSong = song
         isThumbedUp = false  // Reset thumbs up state for new song
 
@@ -254,6 +258,7 @@ class AudioPlayer: NSObject, ObservableObject {
         duration = 0
         currentSong = nil
         isThumbedUp = false
+        currentStreamLoader = nil
 
         // Clear now playing info when stopping
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil

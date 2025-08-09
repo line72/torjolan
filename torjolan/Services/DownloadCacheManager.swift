@@ -143,6 +143,7 @@ public actor DownloadCacheManager {
             }
             // Flush remaining bytes in buffer
             if !buffer.isEmpty {
+                print("DownloadCacheManager:: sending last few bytes of buffer: \(buffer.count)")
                 try fileHandle?.write(contentsOf: buffer)
                 request.streamLoader.appendData(buffer)
             }
@@ -153,6 +154,7 @@ public actor DownloadCacheManager {
             
             // Mark complete if sizes match (or server didn't specify length).
             let finalSize = localFileSize(dest)
+            print("finalSize is \(finalSize)")
             if meta.contentLength == nil || finalSize == meta.contentLength {
                 meta.complete = true
             }
