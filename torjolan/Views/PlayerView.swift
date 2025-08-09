@@ -206,9 +206,9 @@ class AudioPlayer: NSObject, ObservableObject {
                     self?.isPlaying = true
                 case .failed:
                     self?.logDetailedPlayerError(playerItem: playerItem, song: song)
-                    // Task {
-                    //     await self?.fetchAndPlayNextSong()
-                    // }
+                    Task {
+                        await self?.fetchAndPlayNextSong()
+                    }
                 default:
                     print("Status changed to unknown \(status)")
                     break
