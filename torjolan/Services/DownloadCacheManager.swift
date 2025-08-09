@@ -141,6 +141,11 @@ public actor DownloadCacheManager {
                     buffer.removeAll(keepingCapacity: true)
                 }
             }
+            // Flush remaining bytes in buffer
+            if !buffer.isEmpty {
+                try fileHandle?.write(contentsOf: buffer)
+                request.streamLoader.appendData(buffer)
+            }
             fileHandle = nil
 
             // signal end of stream
@@ -156,10 +161,28 @@ public actor DownloadCacheManager {
             touchFileAccessDate(dest)
 
         } catch {
-            os_log("Download failed %@: %@", request.songId, error.localizedDescription)
+            os_log("❌ Download failed %@: %@", request.songId, error.localizedDescription)
+            print("❌ ========== DOWNLOAD FAILED ==========")
+            print("❌ Song ID: \(request.songId)")
+            print("❌ Remote URL: \(request.remote)")
+            print("❌ Error: \(error)")
+            print("❌ Error Type: \(type(of: error))")
+            
+            if let nsError = error as NSError? {
+                print("❌ NSError Domain: \(nsError.domain)")
+                print("❌ NSError Code: \(nsError.code)")
+                print("❌ NSError UserInfo: \(nsError.userInfo)")
+            }
+            
+            if let urlError = error as? URLError {
+                print("❌ URLError Code: \(urlError.code)")
+                print("❌ URLError LocalizedDescription: \(urlError.localizedDescription)")
+                print("❌ URLError FailingURL: \(urlError.failingURL?.absoluteString ?? "nil")")
+            }
+            print("❌ ====================================")
         }
 
-        await finishDownload()
+        finishDownload()
         await pruneIfNeeded(force: false)
     }
 

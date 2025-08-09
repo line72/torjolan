@@ -201,10 +201,10 @@ class AudioPlayer: NSObject, ObservableObject {
                     self?.player?.play()
                     self?.isPlaying = true
                 case .failed:
-                    print("❌ Player item failed: \(playerItem?.error?.localizedDescription ?? "unknown error")")
-                    Task {
-                        await self?.fetchAndPlayNextSong()
-                    }
+                    self?.logDetailedPlayerError(playerItem: playerItem, song: song)
+                    // Task {
+                    //     await self?.fetchAndPlayNextSong()
+                    // }
                 default:
                     print("Status changed to unknown \(status)")
                     break
@@ -257,6 +257,114 @@ class AudioPlayer: NSObject, ObservableObject {
 
         // Clear now playing info when stopping
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+    }
+
+    private func logDetailedPlayerError(playerItem: AVPlayerItem?, song: Song) {
+        print("❌ ========== PLAYER ITEM FAILED ==========")
+        print("❌ Song ID: \(song.id)")
+        print("❌ Song Title: \(song.title)")
+        print("❌ Song Artist: \(song.artist)")
+        
+        if let error = playerItem?.error {
+            print("❌ Primary Error: \(error.localizedDescription)")
+            
+            if let nsError = error as NSError? {
+                print("❌ Error Code: \(nsError.code)")
+                print("❌ Error Domain: \(nsError.domain)")
+            }
+            
+            // Check for underlying errors
+            if let nsError = error as NSError? {
+                print("❌ NSError Code: \(nsError.code)")
+                print("❌ NSError Domain: \(nsError.domain)")
+                print("❌ NSError UserInfo: \(nsError.userInfo)")
+                
+                // Check for underlying error in userInfo
+                if let underlyingError = nsError.userInfo[NSUnderlyingErrorKey] as? NSError {
+                    print("❌ Underlying Error: \(underlyingError.localizedDescription)")
+                    print("❌ Underlying Error Code: \(underlyingError.code)")
+                    print("❌ Underlying Error Domain: \(underlyingError.domain)")
+                    print("❌ Underlying Error UserInfo: \(underlyingError.userInfo)")
+                }
+                
+                // Check for OSStatus errors (common in AVFoundation)
+                if nsError.domain == NSOSStatusErrorDomain {
+                    let osStatus = OSStatus(nsError.code)
+                    print("❌ OSStatus: \(osStatus) (\(fourCharCodeFromOSStatus(osStatus)))")
+                }
+            }
+        } else {
+            print("❌ No error object available")
+        }
+        
+        // Check asset information
+        if let asset = playerItem?.asset {
+            // Check if it's an AVURLAsset first to get URL
+            if let urlAsset = asset as? AVURLAsset {
+                print("❌ AVURLAsset URL: \(urlAsset.url)")
+                print("❌ AVURLAsset ResourceLoader: \(urlAsset.resourceLoader)")
+                
+                // Check if resource loader has a delegate
+                if urlAsset.resourceLoader.delegate != nil {
+                    print("❌ ResourceLoader has delegate: YES")
+                } else {
+                    print("❌ ResourceLoader has delegate: NO")
+                }
+            } else {
+                print("❌ Asset is not AVURLAsset: \(type(of: asset))")
+            }
+            
+            // Use async loading for modern iOS versions to avoid deprecation warnings
+            Task {
+                do {
+                    let duration = try await asset.load(.duration)
+                    let isPlayable = try await asset.load(.isPlayable)
+                    let isReadable = try await asset.load(.isReadable)
+                    let isExportable = try await asset.load(.isExportable)
+                    let isComposable = try await asset.load(.isComposable)
+                    
+                    print("❌ Asset Duration: \(duration)")
+                    print("❌ Asset Playable: \(isPlayable)")
+                    print("❌ Asset Readable: \(isReadable)")
+                    print("❌ Asset Exportable: \(isExportable)")
+                    print("❌ Asset Composable: \(isComposable)")
+                } catch {
+                    print("❌ Failed to load asset properties: \(error)")
+                }
+            }
+        }
+        
+        // Check player item tracks
+        if let tracks = playerItem?.tracks {
+            print("❌ Player Item Tracks Count: \(tracks.count)")
+            for (index, track) in tracks.enumerated() {
+                print("❌ Track \(index): enabled=\(track.isEnabled), asset track=\(track.assetTrack?.mediaType.rawValue ?? "nil")")
+            }
+        }
+        
+        // Check audio session
+        let audioSession = AVAudioSession.sharedInstance()
+        print("❌ Audio Session Category: \(audioSession.category.rawValue)")
+        print("❌ Audio Session Active: \(audioSession.isOtherAudioPlaying)")
+        print("❌ Audio Session Route: \(audioSession.currentRoute)")
+        
+        print("❌ ========================================")
+    }
+    
+    private func fourCharCodeFromOSStatus(_ status: OSStatus) -> String {
+        let bytes = [
+            UInt8((status >> 24) & 0xFF),
+            UInt8((status >> 16) & 0xFF),
+            UInt8((status >> 8) & 0xFF),
+            UInt8(status & 0xFF)
+        ]
+        
+        // Check if all bytes are printable ASCII characters
+        if bytes.allSatisfy({ $0 >= 32 && $0 <= 126 }) {
+            return String(bytes: bytes, encoding: .ascii) ?? "\(status)"
+        } else {
+            return "\(status)"
+        }
     }
 
     deinit {
