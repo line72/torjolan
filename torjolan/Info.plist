@@ -9,5 +9,14 @@
 		<string>audio</string>
 		<string>fetch</string>
 	</array>
+    <key>CFBundleURLTypes</key>
+    <array>
+      <dict>
+        <key>CFBundleURLSchemes</key>
+        <array>
+          <string>torjolan</string>
+        </array>
+      </dict>
+    </array>
 </dict>
 </plist>
