@@ -192,6 +192,28 @@ class APIService {
         
         return try JSONDecoder().decode(StreamResponseList.self, from: data)
     }
+
+    func submitSong(stationId: Int, songId: String) async throws -> Bool {
+        guard let url = URL(string: "\(baseURL)/api/station/\(stationId)/\(songId)") else {
+            throw APIError.invalidURL
+        }
+        
+        var request = authorizedRequest(url)
+        request.httpMethod = "PUT"
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 401 {
+                throw APIError.unauthorized
+            }
+            throw APIError.invalidResponse
+        }
+        
+        let result = try JSONDecoder().decode(SuccessResponse.self, from: data)
+        return result.success
+    }
     
     func thumbsUp(stationId: Int, songId: String) async throws -> Bool {
         guard let url = URL(string: "\(baseURL)/api/station/\(stationId)/\(songId)/thumbs_up") else {

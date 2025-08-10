@@ -2,6 +2,7 @@ import SwiftUI
 import AVFoundation
 import MediaPlayer
 import Combine
+import os.log
 
 class AudioPlayer: NSObject, ObservableObject {
     static let shared = AudioPlayer()
@@ -11,6 +12,12 @@ class AudioPlayer: NSObject, ObservableObject {
     private var playerItemStatusObserver: AnyCancellable?
     private var playerItemDidPlayToEndObserver: AnyCancellable?
 
+    private var submitted = false
+    private var nextUpSong: Song?
+    private var nextUpStreamLoader: StreamLoader?
+
+    private let appLog = OSLog(subsystem: "net.line72.torjolan", category: "PlayerView")
+    
     @Published var isPlaying = false
     @Published var currentTime: TimeInterval = 0
     @Published var currentSong: Song?
@@ -67,6 +74,23 @@ class AudioPlayer: NSObject, ObservableObject {
             guard let self = self else { return }
             self.currentTime = time.seconds
 
+            if ((self.currentTime as Double) / (self.duration as Double) >= 0.85) {
+                // We have reach 85%. Time to submit this as played and retrieve
+                // the next songs
+                if (!self.submitted) {
+                    // We can't run an async task in this callback,
+                    //  therefore we are going to spin up a new
+                    //  thread. However, submitAndGetNextSong must be
+                    //  run on the main thread, which is why we tell
+                    //  this to run on @MainActor
+                    Task { @MainActor in
+                        do {
+                            await self.submitAndGetNextSong(song: self.currentSong)
+                        }
+                    }
+                }
+            }
+            
             // Update lock screen progress
             if var nowPlayingInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo {
                 nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = self.currentTime
@@ -148,6 +172,25 @@ class AudioPlayer: NSObject, ObservableObject {
         }
     }
 
+    /**
+     * If we have a nextSong in the queue, play it, otherwise
+     *  fetch from the server
+     */
+    private func playNextSong() async {
+        if let song = self.nextUpSong, let loader = self.nextUpStreamLoader {
+            os_log("playNextSong: Playing queued NextUp", log: self.appLog, type: .debug)
+            // we have items in the queue, play it
+            await MainActor.run {
+                self.nextUpSong = nil
+                self.nextUpStreamLoader = nil
+                
+                play(streamLoader: loader, song: song)
+            }
+        } else {
+            await fetchAndPlayNextSong()
+        }
+    }
+    
     private func fetchAndPlayNextSong() async {
         guard let station = currentStation else { return }
 
@@ -185,11 +228,72 @@ class AudioPlayer: NSObject, ObservableObject {
         }
     }
 
+    private func submitAndGetNextSong(song: Song?) async {
+        os_log("submitAndGetNextSong", log: self.appLog, type: .debug)
+        
+        guard song != nil else { return }
+        guard !self.submitted else { return }
+        guard let station = currentStation else { return }
+
+        self.submitted = true
+        
+        do {
+            // If this was thumbed up, it has already been
+            //  submitted
+            if (!self.isThumbedUp) {
+                os_log("Calling APIServer.submitSong", log: self.appLog, type: .debug)
+                // Submit this as played
+                let _ = try await APIService.shared.submitSong(stationId: station.id,
+                                                               songId: song?.id ?? "")
+            } else {
+                os_log("Song was thumbed up, skipping submit", log: self.appLog, type: .debug)
+            }
+
+            // Get the next Songs
+            let streamResponseList = try await APIService.shared.getStationStream(stationId: station.id)
+
+            do {
+                // Queue up and start playing the first song in the response
+                let firstStream = streamResponseList.tracks[0]
+                let song = Song(from: firstStream)
+                let streamLoader = await DownloadCacheManager.shared.queue(
+                    songId: song.id,
+                    url: URL(string: firstStream.url)!
+                )
+
+                os_log("Got our next song: %@", log: self.appLog, type: .debug, song.id)
+                
+                self.nextUpSong = song
+                self.nextUpStreamLoader = streamLoader
+
+                // Put the remaining songs in the download queue
+                //
+                // !mwd - This would be better if it was a priority
+                // queue. We have a good chance of backing up our
+                // queue with songs we won't play
+                for stream in streamResponseList.tracks.dropFirst() {
+                    let song2 = Song(from: stream)
+                    let _ = await DownloadCacheManager.shared.queue(
+                      songId: song2.id,
+                      url: URL(string: stream.url)!
+                    )
+                }
+            }
+        } catch {
+            print("Failed to fetch next song: \(error)")
+        }
+    }
+    
     func play(streamLoader: StreamLoader, song: Song) {
         print("Attempting to play URL: \(song.id)")
 
         stop()
 
+        // clear out any next song stuff
+        self.submitted = false
+        self.nextUpSong = nil
+        self.nextUpStreamLoader = nil
+        
         // Retain the stream loader strongly so it isn't deallocated
         currentStreamLoader = streamLoader
 
@@ -218,7 +322,7 @@ class AudioPlayer: NSObject, ObservableObject {
                 case .failed:
                     self?.logDetailedPlayerError(playerItem: playerItem, song: song)
                     Task {
-                        await self?.fetchAndPlayNextSong()
+                        await self?.playNextSong()
                     }
                 default:
                     print("Status changed to unknown \(status)")
@@ -232,7 +336,7 @@ class AudioPlayer: NSObject, ObservableObject {
             .sink { [weak self] _ in
                 print("✓ Media playback ended")
                 Task {
-                    await self?.fetchAndPlayNextSong()
+                    await self?.playNextSong()
                 }
             }
 
