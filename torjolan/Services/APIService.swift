@@ -21,6 +21,10 @@ struct StreamResponse: Codable, Equatable {
     let cover_url: String
 }
 
+struct StreamResponseList: Codable {
+    let tracks: [StreamResponse]
+}
+
 struct SearchResult: Codable {
     let id: String
     let artist: String
@@ -158,7 +162,7 @@ class APIService {
         return try JSONDecoder().decode(CreateStationResponse.self, from: data)
     }
     
-    func getStationStream(stationId: Int) async throws -> StreamResponse {
+    func getStationStream(stationId: Int) async throws -> StreamResponseList {
         guard let url = URL(string: "\(baseURL)/api/station/\(stationId)") else {
             throw APIError.invalidURL
         }
@@ -186,7 +190,7 @@ class APIService {
             throw APIError.invalidResponse
         }
         
-        return try JSONDecoder().decode(StreamResponse.self, from: data)
+        return try JSONDecoder().decode(StreamResponseList.self, from: data)
     }
     
     func thumbsUp(stationId: Int, songId: String) async throws -> Bool {

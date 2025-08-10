@@ -152,17 +152,32 @@ class AudioPlayer: NSObject, ObservableObject {
         guard let station = currentStation else { return }
 
         do {
-            let streamResponse = try await APIService.shared.getStationStream(stationId: station.id)
-            let song = Song(from: streamResponse)
+            let streamResponseList = try await APIService.shared.getStationStream(stationId: station.id)
 
             do {
+                // Queue up and start playing the first song in the response
+                let firstStream = streamResponseList.tracks[0]
+                let song = Song(from: firstStream)
                 let streamLoader = await DownloadCacheManager.shared.queue(
                     songId: song.id,
-                    url: URL(string: streamResponse.url)!
+                    url: URL(string: firstStream.url)!
                 )
 
                 await MainActor.run {
                     play(streamLoader: streamLoader, song: song)
+                }
+
+                // Put the remaining songs in the download queue
+                //
+                // !mwd - This would be better if it was a priority
+                // queue. We have a good chance of backing up our
+                // queue with songs we won't play
+                for stream in streamResponseList.tracks.dropFirst() {
+                    let song2 = Song(from: stream)
+                    let _ = await DownloadCacheManager.shared.queue(
+                      songId: song2.id,
+                      url: URL(string: stream.url)!
+                    )
                 }
             }
         } catch {
@@ -418,8 +433,8 @@ struct PlayerView: View {
                             .bold()
                             .lineLimit(1)
                             .truncationMode(.tail)
-                            .frame(maxWidth: .infinity, alignment: .center)
-
+                            .frame(maxWidth: .infinity, alignment: .center
+)
                         Text(audioPlayer.currentSong?.artist ?? " ")  // Use space to maintain height
                             .font(.title3)
                             .foregroundColor(.secondary)

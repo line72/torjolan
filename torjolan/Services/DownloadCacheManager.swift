@@ -32,11 +32,14 @@ public actor DownloadCacheManager {
     // MARK: Public interface
     @discardableResult
     public func queue(songId: String, url: URL) async -> StreamLoader {
+        os_log("Queue: %@", log: self.appLog, type: .info, songId)
         let dest = destinationURL(for: songId, remoteURL: url)
         touchFileAccessDate(dest)
 
         if !(isFileComplete(dest) ?? false) &&
-            !pending.contains(where: { $0.songId == songId }) {
+             !pending.contains(where: { $0.songId == songId }) &&
+             !active.contains(where: { $0.songId == songId }) {
+            os_log("Song: %@ is being added to queue which has %d songs in it", log: self.appLog, type: .debug, songId, self.pending.count)
 
             // do a HEAD on the request, we need some metadata
             let meta0  = FileMeta(remoteURL: url)
@@ -49,12 +52,22 @@ public actor DownloadCacheManager {
 
             return streamLoader
         } else if let index = pending.firstIndex(where: { $0.songId == songId }) {
+            os_log("Song: %@ is in pending list already", log: self.appLog, type: .debug, songId)
             // This item is in our pending queue,
             // return a handle to the StreamLoader
             //
             // !mwd - In the future, we should move this to the front of the queue
             return pending[index].streamLoader
+        } else if let index = active.firstIndex(where: { $0.songId == songId }) {
+            os_log("Song: %@ is in active list already", log: self.appLog, type: .debug, songId)
+            // This item is in our active download queue,
+            // return a handle to the StreamLoader
+            //
+            // !mwd - In the future, we should move this to the front of the queue
+            return active[index].streamLoader
         } else {
+            os_log("Song: %@ is cached!", log: self.appLog, type: .debug, songId)
+
             var meta  = (try? readMeta(for: dest)) ?? FileMeta(remoteURL: url)
             let fileSize = localFileSize(dest)
             if meta.contentLength == nil {
@@ -110,21 +123,24 @@ public actor DownloadCacheManager {
     private let sizeLimit: UInt64
     private let cacheDir: URL
     private let session: URLSession
-    private var activeCount = 0
     private var pending: [DownloadRequest] = []
+    private var active: [DownloadRequest] = []
     private let appLog = OSLog(subsystem: "net.line72.torjolan", category: "DownloadCacheManager")
 
     // MARK: - Queue processing
     private func scheduleWorkIfNeeded() {
-        guard activeCount < maxConcurrent, !pending.isEmpty else { return }
+        guard self.active.count < maxConcurrent, !pending.isEmpty else { return }
         let next = pending.removeFirst()
-        activeCount += 1
+        self.active.append(next)
+
         Task.detached { [weak self] in
             await self?.download(request: next)
         }
     }
 
     private func download(request: DownloadRequest) async {
+        os_log("Start Download: %@", log: self.appLog, type: .info, request.songId)
+                 
         var fileHandle: FileHandle? = nil
         defer {
             try? fileHandle?.close()
@@ -221,12 +237,15 @@ public actor DownloadCacheManager {
             print("❌ ====================================")
         }
 
-        finishDownload()
+        finishDownload(request: request)
         await pruneIfNeeded(force: false)
     }
 
-    private func finishDownload() {
-        activeCount -= 1
+    private func finishDownload(request: DownloadRequest) {
+        os_log("Finished downloading song: %@", log: self.appLog, type: .debug, request.songId)
+        if let index = self.active.firstIndex(where: { $0.songId == request.songId }) {
+            self.active.remove(at: index)
+        }
         scheduleWorkIfNeeded()
     }
 
