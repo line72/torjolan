@@ -21,6 +21,10 @@ struct StreamResponse: Codable, Equatable {
     let cover_url: String
 }
 
+struct StreamResponseList: Codable {
+    let tracks: [StreamResponse]
+}
+
 struct SearchResult: Codable {
     let id: String
     let artist: String
@@ -158,7 +162,7 @@ class APIService {
         return try JSONDecoder().decode(CreateStationResponse.self, from: data)
     }
     
-    func getStationStream(stationId: Int) async throws -> StreamResponse {
+    func getStationStream(stationId: Int) async throws -> StreamResponseList {
         guard let url = URL(string: "\(baseURL)/api/station/\(stationId)") else {
             throw APIError.invalidURL
         }
@@ -186,7 +190,29 @@ class APIService {
             throw APIError.invalidResponse
         }
         
-        return try JSONDecoder().decode(StreamResponse.self, from: data)
+        return try JSONDecoder().decode(StreamResponseList.self, from: data)
+    }
+
+    func submitSong(stationId: Int, songId: String) async throws -> Bool {
+        guard let url = URL(string: "\(baseURL)/api/station/\(stationId)/\(songId)") else {
+            throw APIError.invalidURL
+        }
+        
+        var request = authorizedRequest(url)
+        request.httpMethod = "PUT"
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 401 {
+                throw APIError.unauthorized
+            }
+            throw APIError.invalidResponse
+        }
+        
+        let result = try JSONDecoder().decode(SuccessResponse.self, from: data)
+        return result.success
     }
     
     func thumbsUp(stationId: Int, songId: String) async throws -> Bool {
