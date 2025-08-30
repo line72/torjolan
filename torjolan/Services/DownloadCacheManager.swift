@@ -53,7 +53,15 @@ public actor DownloadCacheManager {
         os_log("addToQueue at head? %d: %@", log: self.appLog, type: .info, insertAtHead, songId)
         os_log("Active Downloads: %d", log: self.appLog, type: .info, active.count)
         os_log("Pending Downloads: %d", log: self.appLog, type: .info, pending.count)
-        let dest = destinationURL(for: songId, remoteURL: url)
+
+        // if transcode is enabled, convert to mp3
+        var downloadUrl = url
+        if (self.transcode) {
+            downloadUrl = url.addQueryParams(["format": "mp3"])
+        }
+        os_log("url=%@", log: self.appLog, type: .debug, downloadUrl.absoluteString)
+        
+        let dest = destinationURL(for: songId, remoteURL: downloadUrl)
         touchFileAccessDate(dest)
 
         if !(isFileComplete(dest) ?? false) &&
@@ -62,18 +70,18 @@ public actor DownloadCacheManager {
             os_log("Song: %@ is being added to queue which has %d songs in it", log: self.appLog, type: .debug, songId, self.pending.count)
 
             // do a HEAD on the request, we need some metadata
-            let meta0  = FileMeta(remoteURL: url)
+            let meta0  = FileMeta(remoteURL: downloadUrl)
             let meta = await metaWithHeadInfo(meta0)
             try? writeMeta(meta, for: dest)
 
             let streamLoader = StreamLoader(contentType: meta.contentType ?? "audio/mpeg", contentSize: Int64(meta.contentLength ?? 0))
             if (insertAtHead) {
-                pending.insert(DownloadRequest(songId: songId, remote: url, streamLoader: streamLoader), at: 0)
+                pending.insert(DownloadRequest(songId: songId, remote: downloadUrl, streamLoader: streamLoader), at: 0)
                 // force this download to start. We may go over our
                 // max concurrent downloads, but that is ok
                 scheduleWorkIfNeeded(force: true)
             } else {
-                pending.append(DownloadRequest(songId: songId, remote: url, streamLoader: streamLoader))
+                pending.append(DownloadRequest(songId: songId, remote: downloadUrl, streamLoader: streamLoader))
                 scheduleWorkIfNeeded()
             }
             
@@ -101,7 +109,7 @@ public actor DownloadCacheManager {
         } else {
             os_log("Song: %@ is cached!", log: self.appLog, type: .debug, songId)
 
-            var meta  = (try? readMeta(for: dest)) ?? FileMeta(remoteURL: url)
+            var meta  = (try? readMeta(for: dest)) ?? FileMeta(remoteURL: downloadUrl)
             let fileSize = localFileSize(dest)
             if meta.contentLength == nil {
                 // Backfill content length from local file size for accurate metadata
@@ -152,6 +160,7 @@ public actor DownloadCacheManager {
     }
 
     // MARK: - Internal storage
+    private let transcode: Bool = false
     private let maxConcurrent: Int
     private let sizeLimit: UInt64
     private let cacheDir: URL
