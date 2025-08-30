@@ -161,7 +161,7 @@ class AudioPlayer: NSObject, ObservableObject {
         let song = Song(from: stationResponse.track)
 
         do {
-            let streamLoader = await DownloadCacheManager.shared.queue(
+            let streamLoader = await DownloadCacheManager.shared.queueFirst(
               songId: song.id,
               url: URL(string: stationResponse.track.url)!
             )
@@ -201,7 +201,7 @@ class AudioPlayer: NSObject, ObservableObject {
                 // Queue up and start playing the first song in the response
                 let firstStream = streamResponseList.tracks[0]
                 let song = Song(from: firstStream)
-                let streamLoader = await DownloadCacheManager.shared.queue(
+                let streamLoader = await DownloadCacheManager.shared.queueFirst(
                     songId: song.id,
                     url: URL(string: firstStream.url)!
                 )
@@ -256,7 +256,7 @@ class AudioPlayer: NSObject, ObservableObject {
                 // Queue up and start playing the first song in the response
                 let firstStream = streamResponseList.tracks[0]
                 let song = Song(from: firstStream)
-                let streamLoader = await DownloadCacheManager.shared.queue(
+                let streamLoader = await DownloadCacheManager.shared.queueFirst(
                     songId: song.id,
                     url: URL(string: firstStream.url)!
                 )

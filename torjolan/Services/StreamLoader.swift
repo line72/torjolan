@@ -45,7 +45,7 @@ public final class StreamLoader: NSObject {
     }
 
     func appendData(_ data: Data) {
-        os_log("appendData", log: self.appLog, type: .debug)
+        // os_log("appendData", log: self.appLog, type: .debug)
         queue.async {
             self.dataQueue.append(data)
 
@@ -71,7 +71,7 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
         _ resourceLoader: AVAssetResourceLoader,
         shouldWaitForLoadingOfRequestedResource loadingRequest: AVAssetResourceLoadingRequest
     ) -> Bool {
-        os_log("resourceLoader: URL=%@\nHeaders=%@", log: self.appLog, type: .info,
+        os_log("resourceLoader: URL=%@\nHeaders=%@", log: self.appLog, type: .debug,
                loadingRequest.request.url?.absoluteString ?? "nil",
                loadingRequest.request.allHTTPHeaderFields ?? [:]
         )
@@ -188,7 +188,7 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
                 let newCurrentOffset = Int(dataRequest.currentOffset)
                 let totalSent = newCurrentOffset
                 if totalSent >= requested {
-                    os_log("pendingRequest(%d): %@: is complete!", log: self.appLog, type: .info, index, request)
+                    os_log("pendingRequest(%d): %@: is complete!", log: self.appLog, type: .debug, index, request.request.url?.absoluteString ?? "")
 
                     // Let the request know it is all done
                     request.finishLoading()
@@ -208,13 +208,13 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
         _ resourceLoader: AVAssetResourceLoader,
         didCancel loadingRequest: AVAssetResourceLoadingRequest
     ) {
-        os_log("resourceLoader didCancel: %@, url=%@", log: self.appLog, type: .info,
-               loadingRequest, loadingRequest.request.url?.absoluteString ?? "nil")
+        os_log("resourceLoader didCancel: url=%@", log: self.appLog, type: .info,
+               loadingRequest.request.url?.absoluteString ?? "nil")
         
         // Remove from pending requests if it exists
         if let index = pendingRequests.firstIndex(where: { $0 === loadingRequest }) {
             let req = pendingRequests[index]
-            os_log("Removing cancelled request from queue: %@", log: self.appLog, type: .info, req)
+            os_log("Removing cancelled request from queue: %@", log: self.appLog, type: .info, req.request.url?.absoluteString ?? "")
 
             pendingRequests.remove(at: index)
 

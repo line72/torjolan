@@ -33,6 +33,20 @@ public actor DownloadCacheManager {
     @discardableResult
     public func queue(songId: String, url: URL) async -> StreamLoader {
         os_log("Queue: %@", log: self.appLog, type: .info, songId)
+        return await addToQueue(insertAtHead: false, songId: songId, url: url)
+    }
+
+    @discardableResult
+    public func queueFirst(songId: String, url: URL) async -> StreamLoader {
+        os_log("QueueFirst: %@", log:self.appLog, type: .info, songId)
+        return await addToQueue(insertAtHead: true, songId: songId, url: url)
+    }
+
+    @discardableResult
+    public func addToQueue(insertAtHead: Bool, songId: String, url: URL) async -> StreamLoader {
+        os_log("addToQueue at head? %d: %@", log: self.appLog, type: .info, insertAtHead, songId)
+        os_log("Active Downloads: %d", log: self.appLog, type: .info, active.count)
+        os_log("Pending Downloads: %d", log: self.appLog, type: .info, pending.count)
         let dest = destinationURL(for: songId, remoteURL: url)
         touchFileAccessDate(dest)
 
@@ -47,7 +61,12 @@ public actor DownloadCacheManager {
             try? writeMeta(meta, for: dest)
 
             let streamLoader = StreamLoader(contentType: meta.contentType ?? "audio/mpeg", contentSize: Int64(meta.contentLength ?? 0))
-            pending.append(DownloadRequest(songId: songId, remote: url, streamLoader: streamLoader))
+            if (insertAtHead) {
+                pending.insert(DownloadRequest(songId: songId, remote: url, streamLoader: streamLoader), at: 0)
+            } else {
+                pending.append(DownloadRequest(songId: songId, remote: url, streamLoader: streamLoader))
+            }
+            
             scheduleWorkIfNeeded()
 
             return streamLoader
@@ -56,14 +75,19 @@ public actor DownloadCacheManager {
             // This item is in our pending queue,
             // return a handle to the StreamLoader
             //
-            // !mwd - In the future, we should move this to the front of the queue
-            return pending[index].streamLoader
+            if (insertAtHead) {
+                // Move this to the top of the pending queue
+                let item = pending.remove(at: index);
+                pending.insert(item, at: 0)
+                return item.streamLoader
+            } else {
+                return pending[index].streamLoader
+            }
         } else if let index = active.firstIndex(where: { $0.songId == songId }) {
             os_log("Song: %@ is in active list already", log: self.appLog, type: .debug, songId)
             // This item is in our active download queue,
             // return a handle to the StreamLoader
             //
-            // !mwd - In the future, we should move this to the front of the queue
             return active[index].streamLoader
         } else {
             os_log("Song: %@ is cached!", log: self.appLog, type: .debug, songId)
