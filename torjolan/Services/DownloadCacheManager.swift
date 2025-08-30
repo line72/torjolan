@@ -255,29 +255,34 @@ public actor DownloadCacheManager {
             touchFileAccessDate(dest)
 
         } catch {
-            os_log("❌ Download failed %@: %@", log: self.appLog, type: .error, request.songId, error.localizedDescription)
-
             // signal end of stream
             request.streamLoader.signalEndOfStream()
-            
-            print("❌ ========== DOWNLOAD FAILED ==========")
-            print("❌ Song ID: \(request.songId)")
-            print("❌ Remote URL: \(request.remote)")
-            print("❌ Error: \(error)")
-            print("❌ Error Type: \(type(of: error))")
-            
-            if let nsError = error as NSError? {
-                print("❌ NSError Domain: \(nsError.domain)")
-                print("❌ NSError Code: \(nsError.code)")
-                print("❌ NSError UserInfo: \(nsError.userInfo)")
+
+            if error is CancellationError {
+                os_log("Download %@ has been cancelled", log: self.appLog, type: .info, request.songId)
+            } else {
+                os_log("❌ Download failed %@: %@", log: self.appLog, type: .error, request.songId, error.localizedDescription)
+
+                os_log("❌ ========== DOWNLOAD FAILED ==========", log: self.appLog, type: .debug)
+                os_log("❌ Song ID: %@", log: self.appLog, type: .debug, request.songId)
+                os_log("❌ Remote URL: %@", log: self.appLog, type: .debug, request.remote as CVarArg)
+                os_log("❌ Error: %@", log: self.appLog, type: .debug, String(describing: error))
+                os_log("❌ Error Type: %@", log: self.appLog, type: .debug, String(reflecting: type(of: error)))
+                
+                if let nsError = error as NSError? {
+                    os_log("❌ NSError Domain: %@", log: self.appLog, type: .debug, nsError.domain)
+                    os_log("❌ NSError Code: %d", log: self.appLog, type: .debug, nsError.code as CVarArg)
+                    os_log("❌ NSError UserInfo: %@", log: self.appLog, type: .debug, nsError.userInfo)
+                }
+                
+                if let urlError = error as? URLError {
+                    os_log("❌ URLError Code: %d", log: self.appLog, type: .debug, urlError.code.rawValue)
+                    os_log("❌ URLError LocalizedDescription: %@", log: self.appLog, type: .debug, urlError.localizedDescription)
+                    os_log("❌ URLError FailingURL: %@", log: self.appLog, type: .debug, urlError.failingURL?.absoluteString ?? "nil")
+                }
+                
+                os_log("❌ ====================================", log: self.appLog, type: .debug)
             }
-            
-            if let urlError = error as? URLError {
-                print("❌ URLError Code: \(urlError.code)")
-                print("❌ URLError LocalizedDescription: \(urlError.localizedDescription)")
-                print("❌ URLError FailingURL: \(urlError.failingURL?.absoluteString ?? "nil")")
-            }
-            print("❌ ====================================")
         }
 
         finishDownload(request: request)

@@ -673,7 +673,7 @@ struct PlayerView: View {
 
             // cancel the download of the existing (if still working)
             //  to make sure the next in line starts
-            DownloadCacheManager.shared.cancel(songId: song.id)
+            await DownloadCacheManager.shared.cancel(songId: song.id)
         }
     }
 
