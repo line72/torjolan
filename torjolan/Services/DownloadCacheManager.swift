@@ -178,7 +178,7 @@ public actor DownloadCacheManager {
     }
 
     private func download(request: DownloadRequest) async {
-        os_log("Start Download: %@", log: self.appLog, type: .info, request.songId)
+        os_log("Start Download: %@ | tasks: %d | active: %d | pending: %d", log: self.appLog, type: .info, request.songId, self.activeTasks.count, self.active.count, self.pending.count)
                  
         var fileHandle: FileHandle? = nil
         defer {
@@ -198,7 +198,7 @@ public actor DownloadCacheManager {
 
         let currentSize = localFileSize(dest)
         if let expected = meta.contentLength, currentSize == expected, meta.complete {
-            os_log("✓ Cached %@", request.songId); return
+            os_log("✓ Cached %@", log: self.appLog, type: .debug, request.songId); return
         }
 
         // !mwd - In the future, it would be cool to resume
@@ -391,10 +391,12 @@ public actor DownloadCacheManager {
     // MARK: Eviction
     private func pruneIfNeeded(force: Bool) async {
         let (total, files) = folderSizeAndFiles()
+        os_log("Pruning cache %d, total=%d of %d, files=%d", log: self.appLog, type: .debug, force, total, sizeLimit, files.count)
         guard force || total > sizeLimit else { return }
 
         var bytesToFree = total > sizeLimit ? total - sizeLimit : 0
         for stat in files where bytesToFree > 0 {
+            os_log("Deleting %@ from cache", log: self.appLog, type: .debug, stat.url.absoluteString)
             try? FileManager.default.removeItem(at: stat.url)
             try? FileManager.default.removeItem(at: metaURL(for: stat.url))
             bytesToFree = bytesToFree > stat.size ? bytesToFree - stat.size : 0
