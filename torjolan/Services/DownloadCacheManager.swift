@@ -30,6 +30,12 @@ public actor DownloadCacheManager {
     }
 
     // MARK: Public interface
+    public func cancel(songId: String) {
+        os_log("Cancel: %@", log: self.appLog, type: .info, songId)
+        self.activeTasks[songId]?.cancel()
+        self.activeTasks.removeValue(forKey: songId)
+    }
+    
     @discardableResult
     public func queue(songId: String, url: URL) async -> StreamLoader {
         os_log("Queue: %@", log: self.appLog, type: .info, songId)
@@ -38,7 +44,7 @@ public actor DownloadCacheManager {
 
     @discardableResult
     public func queueFirst(songId: String, url: URL) async -> StreamLoader {
-        os_log("QueueFirst: %@", log:self.appLog, type: .info, songId)
+        os_log("QueueFirst: %@", log: self.appLog, type: .info, songId)
         return await addToQueue(insertAtHead: true, songId: songId, url: url)
     }
 
@@ -63,11 +69,14 @@ public actor DownloadCacheManager {
             let streamLoader = StreamLoader(contentType: meta.contentType ?? "audio/mpeg", contentSize: Int64(meta.contentLength ?? 0))
             if (insertAtHead) {
                 pending.insert(DownloadRequest(songId: songId, remote: url, streamLoader: streamLoader), at: 0)
+                // force this download to start. We may go over our
+                // max concurrent downloads, but that is ok
+                scheduleWorkIfNeeded(force: true)
             } else {
                 pending.append(DownloadRequest(songId: songId, remote: url, streamLoader: streamLoader))
+                scheduleWorkIfNeeded()
             }
             
-            scheduleWorkIfNeeded()
 
             return streamLoader
         } else if let index = pending.firstIndex(where: { $0.songId == songId }) {
@@ -149,17 +158,23 @@ public actor DownloadCacheManager {
     private let session: URLSession
     private var pending: [DownloadRequest] = []
     private var active: [DownloadRequest] = []
+    private var activeTasks: [String: Task<()?, Never>] = [:] // songId -> Task
     private let appLog = OSLog(subsystem: "net.line72.torjolan", category: "DownloadCacheManager")
 
     // MARK: - Queue processing
-    private func scheduleWorkIfNeeded() {
-        guard self.active.count < maxConcurrent, !pending.isEmpty else { return }
+    private func scheduleWorkIfNeeded(force: Bool = false) {
+        // Only pass if force is true OR the active is less than our
+        // max concurrent and we have pending items
+        guard force || self.active.count < maxConcurrent, force || !pending.isEmpty else { return }
+
         let next = pending.removeFirst()
         self.active.append(next)
 
-        Task.detached { [weak self] in
+        let downloadTask = Task.detached { [weak self] in
             await self?.download(request: next)
         }
+
+        self.activeTasks[next.songId] = downloadTask
     }
 
     private func download(request: DownloadRequest) async {
@@ -241,6 +256,10 @@ public actor DownloadCacheManager {
 
         } catch {
             os_log("❌ Download failed %@: %@", log: self.appLog, type: .error, request.songId, error.localizedDescription)
+
+            // signal end of stream
+            request.streamLoader.signalEndOfStream()
+            
             print("❌ ========== DOWNLOAD FAILED ==========")
             print("❌ Song ID: \(request.songId)")
             print("❌ Remote URL: \(request.remote)")
@@ -270,6 +289,9 @@ public actor DownloadCacheManager {
         if let index = self.active.firstIndex(where: { $0.songId == request.songId }) {
             self.active.remove(at: index)
         }
+        // also remove the task
+        self.activeTasks.removeValue(forKey: request.songId)
+        
         scheduleWorkIfNeeded()
     }
 
