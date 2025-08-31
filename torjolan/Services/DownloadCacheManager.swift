@@ -30,26 +30,26 @@ public actor DownloadCacheManager {
     }
 
     // MARK: Public interface
-    public func cancel(songId: String) {
+    func cancel(songId: String) {
         os_log("Cancel: %@", log: self.appLog, type: .info, songId)
         self.activeTasks[songId]?.cancel()
         self.activeTasks.removeValue(forKey: songId)
     }
     
     @discardableResult
-    public func queue(songId: String, url: URL) async -> StreamLoader {
-        os_log("Queue: %@", log: self.appLog, type: .info, songId)
-        return await addToQueue(insertAtHead: false, songId: songId, url: url)
+    func queue(song: Song, url: URL) async -> StreamLoader {
+        os_log("Queue: %@: %@ - %@", log: self.appLog, type: .info, song.id, song.artist, song.title)
+        return await addToQueue(insertAtHead: false, songId: song.id, url: url)
     }
 
     @discardableResult
-    public func queueFirst(songId: String, url: URL) async -> StreamLoader {
-        os_log("QueueFirst: %@", log: self.appLog, type: .info, songId)
-        return await addToQueue(insertAtHead: true, songId: songId, url: url)
+    func queueFirst(song: Song, url: URL) async -> StreamLoader {
+        os_log("QueueFirst: %@: %@ - %@", log: self.appLog, type: .info, song.id, song.artist, song.title)
+        return await addToQueue(insertAtHead: true, songId: song.id, url: url)
     }
 
     @discardableResult
-    public func addToQueue(insertAtHead: Bool, songId: String, url: URL) async -> StreamLoader {
+    func addToQueue(insertAtHead: Bool, songId: String, url: URL) async -> StreamLoader {
         os_log("addToQueue at head? %d: %@", log: self.appLog, type: .info, insertAtHead, songId)
         os_log("Active Downloads: %d", log: self.appLog, type: .info, active.count)
         os_log("Pending Downloads: %d", log: self.appLog, type: .info, pending.count)
@@ -74,7 +74,7 @@ public actor DownloadCacheManager {
             let meta = await metaWithHeadInfo(meta0)
             try? writeMeta(meta, for: dest)
 
-            let streamLoader = StreamLoader(contentType: meta.contentType ?? "audio/mpeg", contentSize: Int64(meta.contentLength ?? 0))
+            let streamLoader = StreamLoader(songId: songId, contentType: meta.contentType ?? "audio/mpeg", contentSize: Int64(meta.contentLength ?? 0))
             if (insertAtHead) {
                 pending.insert(DownloadRequest(songId: songId, remote: downloadUrl, streamLoader: streamLoader), at: 0)
                 // force this download to start. We may go over our
@@ -118,8 +118,9 @@ public actor DownloadCacheManager {
             }
 
             let streamLoader = StreamLoader(
-                contentType: meta.contentType ?? "audio/mpeg",
-                contentSize: Int64(meta.contentLength ?? fileSize)
+              songId: songId,
+              contentType: meta.contentType ?? "audio/mpeg",
+              contentSize: Int64(meta.contentLength ?? fileSize)
             )
 
             // Read the cached file and feed it to the StreamLoader in chunks
@@ -149,13 +150,13 @@ public actor DownloadCacheManager {
         }
     }
 
-    public func remove(songId: String) {
+    func remove(songId: String) {
         let url = destinationURL(for: songId, remoteURL: nil)
         try? FileManager.default.removeItem(at: url)
         try? FileManager.default.removeItem(at: metaURL(for: url))
     }
 
-    public func cleanup() async {
+    func cleanup() async {
         await pruneIfNeeded(force: true)
     }
 
