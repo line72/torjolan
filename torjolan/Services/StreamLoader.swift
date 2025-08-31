@@ -9,9 +9,12 @@ public final class StreamLoader: NSObject {
     private let contentType: String
     private let utiContentType: String
     private let contentSize: Int64
+    private var isComplete: Bool = false
+    private let songId: String
     private let appLog = OSLog(subsystem: "net.line72.torjolan", category: "StreamLoader")
 
-    init(contentType: String, contentSize: Int64) {
+    init(songId: String, contentType: String, contentSize: Int64) {
+        self.songId = songId
         self.contentType = contentType
         // Map MIME type to UTI identifier for AVFoundation
         if let ut = UTType(mimeType: contentType)?.identifier {
@@ -45,7 +48,7 @@ public final class StreamLoader: NSObject {
     }
 
     func appendData(_ data: Data) {
-        os_log("appendData", log: self.appLog, type: .debug)
+        // os_log("appendData", log: self.appLog, type: .debug)
         queue.async {
             self.dataQueue.append(data)
 
@@ -56,7 +59,8 @@ public final class StreamLoader: NSObject {
     }
 
     func signalEndOfStream() {
-        os_log("signalEndOfStream: %d|%d", log: self.appLog, type: .info, self.dataQueue.count, self.contentSize)
+        os_log("signalEndOfStream for %@: %d|%d", log: self.appLog, type: .info, self.songId, self.dataQueue.count, self.contentSize)
+        self.isComplete = true
         queue.async {
             self.processPendingRequests() // Drain final data
             // Do not forcibly finish pending requests here. Allow any late
@@ -71,31 +75,60 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
         _ resourceLoader: AVAssetResourceLoader,
         shouldWaitForLoadingOfRequestedResource loadingRequest: AVAssetResourceLoadingRequest
     ) -> Bool {
-        os_log("resourceLoader: URL=%@\nHeaders=%@", log: self.appLog, type: .info,
+        os_log("resourceLoader for %@: URL=%@\nHeaders=%@", log: self.appLog, type: .debug,
+               self.songId,
                loadingRequest.request.url?.absoluteString ?? "nil",
                loadingRequest.request.allHTTPHeaderFields ?? [:]
         )
 
         // ✅ 1. Populate metadata if requested (do not finish yet if there is also a dataRequest)
         if let info = loadingRequest.contentInformationRequest {
-            os_log("Returning meta for a contentInformationRequest: contentType=%@, contentSize=%d",
+            os_log("Returning meta for a contentInformationRequest for %@: contentType=%@, contentSize=%d",
                    log: self.appLog, type: .debug,
+                   self.songId,
                    self.contentType, self.contentSize)
 
             // Set content information expected by AVFoundation (UTI, not MIME)
             info.contentType = self.utiContentType
-            info.contentLength = self.contentSize
-            info.isByteRangeAccessSupported = true
+            if (self.contentSize == 0) {
+                os_log("No contentSize for %@ - we must be transcoding", log: self.appLog, type: .debug,
+                       self.songId)
+                // if transcoding, we don't have a valid contentLenght
+                // and can't use byteRangeAccessSuport
+                //
+                // It appears, AVPlayer is fucking dumb when it comes
+                //  to streaming without a known content length. The
+                //  recommendation appears to be to use HLS instead,
+                //  but navidrome does not support this. So, instead,
+                //  we are going to tell it the content length is
+                //  something really big, so it'll keep making
+                //  requests until we tell it, it is the end of the
+                //  stream.
+                //
+                // !mwd - Note, this doesn't really work. AVPlayer
+                // shows a ridiculous duration (72+ minutes). AVPlayer
+                // keeps making requests to the delegate, even though
+                // we have called finishLoading. It does seem to
+                // eventually stop, but AVPlayer just hangs forever,
+                // and never goes to the next song.
+                
+                info.contentLength = 100 * 1024 * 1024 // 100MB
+                info.isByteRangeAccessSupported = false
+            } else {
+                info.contentLength = self.contentSize
+                info.isByteRangeAccessSupported = true
+            }
         }
 
         // ✅ 2. If there's a dataRequest, queue it and start fulfilling
         if loadingRequest.dataRequest != nil {
-            os_log("queuing new request: %@", log: self.appLog, type: .debug,
-                   loadingRequest)
+            os_log("queuing new request from %@: %@", log: self.appLog, type: .debug,
+                   self.songId, loadingRequest)
 
             self.pendingRequests.append(loadingRequest)
 
-            os_log("Number of pending requests=: %d", log: self.appLog, type: .debug, self.pendingRequests.count)
+            os_log("Number of pending requests from %@ =: %d", log: self.appLog, type: .debug,
+                   self.songId, self.pendingRequests.count)
             if self.dataQueue.count > 0 {
                 self.processPendingRequests()
             }
@@ -104,13 +137,14 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
 
         // ✅ 3. If metadata-only request, we can finish now
         if loadingRequest.contentInformationRequest != nil {
-            os_log("contentInformationRequest is complete", log: self.appLog, type: .debug)
+            os_log("contentInformationRequest is complete from %@", log: self.appLog, type: .debug, self.songId)
             
             loadingRequest.finishLoading()
             return true
         }
 
-        os_log("❌ Unhandled Request Type, no contentInformationRequest or dataRequest!", log: self.appLog, type: .error)
+        os_log("❌ Unhandled Request Type from %@, no contentInformationRequest or dataRequest!", log: self.appLog, type: .error,
+               self.songId)
         return false
     }
     
@@ -118,7 +152,8 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
         guard !pendingRequests.isEmpty else { return }
         guard dataQueue.count != 0 else { return }
 
-        os_log("processPendingRequests: count=%d", log: self.appLog, type: .debug, self.pendingRequests.count)
+        os_log("processPendingRequests from %@: count=%d", log: self.appLog, type: .debug,
+               self.songId, self.pendingRequests.count)
         
         var index = 0
         while (index < pendingRequests.count) {
@@ -128,14 +163,16 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
                 //  since we never should have added this to our pending request
                 //  if dataRequest was nil
                 // Just remove this from our list
-                os_log("❌ pendingRequest is missing a dataRequest!", log: self.appLog, type: .error)
+                os_log("❌ pendingRequest from %@ is missing a dataRequest!", log: self.appLog, type: .error,
+                       self.songId)
 
                 pendingRequests.remove(at: index)
                 
                 continue
             }
 
-            os_log("processing pendingRequest(%d): %@", log: self.appLog, type: .debug, index, request)
+            os_log("processing pendingRequest(%d) from %@: %@", log: self.appLog, type: .debug,
+                   index, self.songId, request)
 
             while true {
                 // Never exceed requestedLength
@@ -161,20 +198,33 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
                 let maxBoundary = min(dataQueue.count, requestedOffset + requested)
                 let available = maxBoundary - start
 
-                os_log("pendingRequest(%d): %@: requested=%d, requestedOffset=%d, currentOffset=%d, start=%d, maxBoundary=%d, available=%d",
+                os_log("pendingRequest(%d) from %@: %@: requested=%d, requestedOffset=%d, currentOffset=%d, start=%d, maxBoundary=%d, available=%d",
                        log: self.appLog, type: .debug,
-                       index, request,
+                       index, self.songId, request,
                        requested, requestedOffset, currentOffset,
                        start, maxBoundary, available)
 
-                if available <= 0 {
+                if available <= 0 && !self.isComplete {
                     // Not enough data yet
-                    os_log("pendingRequest(%d): %@: Not enough data for request", log: self.appLog, type: .debug,
-                           index, request)
+                    os_log("pendingRequest(%d) from %@: %@: Not enough data for request", log: self.appLog, type: .debug,
+                           index, self.songId, request)
 
                     // remove on to the next request as it might have
                     // a different range that we do have data for
                     index += 1
+                    break
+                } else if available <= 0 && self.isComplete {
+                    // we are done! We didn't have a valid contentLength
+                    // which is why we don't think we have any data left
+                    os_log("pendingRequest(%d) from %@: We have finished all the data", log: self.appLog, type: .debug,
+                           index, self.songId)
+
+                    // Let the request know it is all done
+                    request.finishLoading()
+
+                    // Remove this from anything we'll process
+                    pendingRequests.remove(at: index) // remove correct pending request
+                    
                     break
                 }
 
@@ -188,7 +238,30 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
                 let newCurrentOffset = Int(dataRequest.currentOffset)
                 let totalSent = newCurrentOffset
                 if totalSent >= requested {
-                    os_log("pendingRequest(%d): %@: is complete!", log: self.appLog, type: .info, index, request)
+                    os_log("pendingRequest(%d) from %@: %@: is complete!", log: self.appLog, type: .debug,
+                           index, self.songId, request.request.url?.absoluteString ?? "")
+
+                    // Let the request know it is all done
+                    request.finishLoading()
+
+                    // Remove this from anything we'll process
+                    pendingRequests.remove(at: index) // remove correct pending request
+                    
+                    break
+                }
+
+                // For streaming, we don't have a valid contentLength,
+                // so we need to wait until the data is complete, and
+                // use that as our final size
+                if (self.isComplete) {
+                    os_log("pendingRequest(%d) from %@: we are complete, but haven't sent all data: dataQueue=%d, totalSent=%d, pendingRequest=%@",
+                           log: self.appLog, type: .debug,
+                           index, self.songId, self.dataQueue.count, totalSent, request)
+                }
+                             
+                if self.isComplete && totalSent >= self.dataQueue.count {
+                    os_log("pendingRequest(%d) from %@ has hit the final length", log: self.appLog, type: .debug,
+                           index, self.songId)
 
                     // Let the request know it is all done
                     request.finishLoading()
@@ -201,24 +274,27 @@ extension StreamLoader: AVAssetResourceLoaderDelegate {
             }
         }
 
-        os_log("processPendingRequests complete. Number of pendingRequests=%d", log: self.appLog, type: .debug, self.pendingRequests.count)
+        os_log("processPendingRequests from %@ complete. Number of pendingRequests=%d", log: self.appLog, type: .debug,
+               self.songId, self.pendingRequests.count)
     }
     
     public func resourceLoader(
         _ resourceLoader: AVAssetResourceLoader,
         didCancel loadingRequest: AVAssetResourceLoadingRequest
     ) {
-        os_log("resourceLoader didCancel: %@, url=%@", log: self.appLog, type: .info,
-               loadingRequest, loadingRequest.request.url?.absoluteString ?? "nil")
+        os_log("resourceLoader didCancel for %@: url=%@", log: self.appLog, type: .info,
+               self.songId, loadingRequest.request.url?.absoluteString ?? "nil")
         
         // Remove from pending requests if it exists
         if let index = pendingRequests.firstIndex(where: { $0 === loadingRequest }) {
             let req = pendingRequests[index]
-            os_log("Removing cancelled request from queue: %@", log: self.appLog, type: .info, req)
+            os_log("Removing cancelled request from queue for %@: %@", log: self.appLog, type: .info,
+                   self.songId, req.request.url?.absoluteString ?? "")
 
             pendingRequests.remove(at: index)
 
-            os_log("Number of pending requests after cancel=%d", log: self.appLog, type: .debug, self.pendingRequests.count)
+            os_log("Number of pending requests after cancel from %@=%d", log: self.appLog, type: .debug,
+                   self.songId, self.pendingRequests.count)
         }
     }
 }

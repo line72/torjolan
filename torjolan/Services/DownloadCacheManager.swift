@@ -30,10 +30,38 @@ public actor DownloadCacheManager {
     }
 
     // MARK: Public interface
+    func cancel(songId: String) {
+        os_log("Cancel: %@", log: self.appLog, type: .info, songId)
+        self.activeTasks[songId]?.cancel()
+        self.activeTasks.removeValue(forKey: songId)
+    }
+    
     @discardableResult
-    public func queue(songId: String, url: URL) async -> StreamLoader {
-        os_log("Queue: %@", log: self.appLog, type: .info, songId)
-        let dest = destinationURL(for: songId, remoteURL: url)
+    func queue(song: Song, url: URL) async -> StreamLoader {
+        os_log("Queue: %@: %@ - %@", log: self.appLog, type: .info, song.id, song.artist, song.title)
+        return await addToQueue(insertAtHead: false, songId: song.id, url: url)
+    }
+
+    @discardableResult
+    func queueFirst(song: Song, url: URL) async -> StreamLoader {
+        os_log("QueueFirst: %@: %@ - %@", log: self.appLog, type: .info, song.id, song.artist, song.title)
+        return await addToQueue(insertAtHead: true, songId: song.id, url: url)
+    }
+
+    @discardableResult
+    func addToQueue(insertAtHead: Bool, songId: String, url: URL) async -> StreamLoader {
+        os_log("addToQueue at head? %d: %@", log: self.appLog, type: .info, insertAtHead, songId)
+        os_log("Active Downloads: %d", log: self.appLog, type: .info, active.count)
+        os_log("Pending Downloads: %d", log: self.appLog, type: .info, pending.count)
+
+        // if transcode is enabled, convert to mp3
+        var downloadUrl = url
+        if (self.transcode) {
+            downloadUrl = url.addQueryParams(["format": "mp3"])
+        }
+        os_log("url=%@", log: self.appLog, type: .debug, downloadUrl.absoluteString)
+        
+        let dest = destinationURL(for: songId, remoteURL: downloadUrl)
         touchFileAccessDate(dest)
 
         if !(isFileComplete(dest) ?? false) &&
@@ -42,13 +70,21 @@ public actor DownloadCacheManager {
             os_log("Song: %@ is being added to queue which has %d songs in it", log: self.appLog, type: .debug, songId, self.pending.count)
 
             // do a HEAD on the request, we need some metadata
-            let meta0  = FileMeta(remoteURL: url)
+            let meta0  = FileMeta(remoteURL: downloadUrl)
             let meta = await metaWithHeadInfo(meta0)
             try? writeMeta(meta, for: dest)
 
-            let streamLoader = StreamLoader(contentType: meta.contentType ?? "audio/mpeg", contentSize: Int64(meta.contentLength ?? 0))
-            pending.append(DownloadRequest(songId: songId, remote: url, streamLoader: streamLoader))
-            scheduleWorkIfNeeded()
+            let streamLoader = StreamLoader(songId: songId, contentType: meta.contentType ?? "audio/mpeg", contentSize: Int64(meta.contentLength ?? 0))
+            if (insertAtHead) {
+                pending.insert(DownloadRequest(songId: songId, remote: downloadUrl, streamLoader: streamLoader), at: 0)
+                // force this download to start. We may go over our
+                // max concurrent downloads, but that is ok
+                scheduleWorkIfNeeded(force: true)
+            } else {
+                pending.append(DownloadRequest(songId: songId, remote: downloadUrl, streamLoader: streamLoader))
+                scheduleWorkIfNeeded()
+            }
+            
 
             return streamLoader
         } else if let index = pending.firstIndex(where: { $0.songId == songId }) {
@@ -56,19 +92,24 @@ public actor DownloadCacheManager {
             // This item is in our pending queue,
             // return a handle to the StreamLoader
             //
-            // !mwd - In the future, we should move this to the front of the queue
-            return pending[index].streamLoader
+            if (insertAtHead) {
+                // Move this to the top of the pending queue
+                let item = pending.remove(at: index);
+                pending.insert(item, at: 0)
+                return item.streamLoader
+            } else {
+                return pending[index].streamLoader
+            }
         } else if let index = active.firstIndex(where: { $0.songId == songId }) {
             os_log("Song: %@ is in active list already", log: self.appLog, type: .debug, songId)
             // This item is in our active download queue,
             // return a handle to the StreamLoader
             //
-            // !mwd - In the future, we should move this to the front of the queue
             return active[index].streamLoader
         } else {
             os_log("Song: %@ is cached!", log: self.appLog, type: .debug, songId)
 
-            var meta  = (try? readMeta(for: dest)) ?? FileMeta(remoteURL: url)
+            var meta  = (try? readMeta(for: dest)) ?? FileMeta(remoteURL: downloadUrl)
             let fileSize = localFileSize(dest)
             if meta.contentLength == nil {
                 // Backfill content length from local file size for accurate metadata
@@ -77,8 +118,9 @@ public actor DownloadCacheManager {
             }
 
             let streamLoader = StreamLoader(
-                contentType: meta.contentType ?? "audio/mpeg",
-                contentSize: Int64(meta.contentLength ?? fileSize)
+              songId: songId,
+              contentType: meta.contentType ?? "audio/mpeg",
+              contentSize: Int64(meta.contentLength ?? fileSize)
             )
 
             // Read the cached file and feed it to the StreamLoader in chunks
@@ -108,38 +150,45 @@ public actor DownloadCacheManager {
         }
     }
 
-    public func remove(songId: String) {
+    func remove(songId: String) {
         let url = destinationURL(for: songId, remoteURL: nil)
         try? FileManager.default.removeItem(at: url)
         try? FileManager.default.removeItem(at: metaURL(for: url))
     }
 
-    public func cleanup() async {
+    func cleanup() async {
         await pruneIfNeeded(force: true)
     }
 
     // MARK: - Internal storage
+    private let transcode: Bool = false
     private let maxConcurrent: Int
     private let sizeLimit: UInt64
     private let cacheDir: URL
     private let session: URLSession
     private var pending: [DownloadRequest] = []
     private var active: [DownloadRequest] = []
+    private var activeTasks: [String: Task<()?, Never>] = [:] // songId -> Task
     private let appLog = OSLog(subsystem: "net.line72.torjolan", category: "DownloadCacheManager")
 
     // MARK: - Queue processing
-    private func scheduleWorkIfNeeded() {
-        guard self.active.count < maxConcurrent, !pending.isEmpty else { return }
+    private func scheduleWorkIfNeeded(force: Bool = false) {
+        // Only pass if force is true OR the active is less than our
+        // max concurrent and we have pending items
+        guard force || self.active.count < maxConcurrent, force || !pending.isEmpty else { return }
+
         let next = pending.removeFirst()
         self.active.append(next)
 
-        Task.detached { [weak self] in
+        let downloadTask = Task.detached { [weak self] in
             await self?.download(request: next)
         }
+
+        self.activeTasks[next.songId] = downloadTask
     }
 
     private func download(request: DownloadRequest) async {
-        os_log("Start Download: %@", log: self.appLog, type: .info, request.songId)
+        os_log("Start Download: %@ | tasks: %d | active: %d | pending: %d", log: self.appLog, type: .info, request.songId, self.activeTasks.count, self.active.count, self.pending.count)
                  
         var fileHandle: FileHandle? = nil
         defer {
@@ -159,7 +208,7 @@ public actor DownloadCacheManager {
 
         let currentSize = localFileSize(dest)
         if let expected = meta.contentLength, currentSize == expected, meta.complete {
-            os_log("✓ Cached %@", request.songId); return
+            os_log("✓ Cached %@", log: self.appLog, type: .debug, request.songId); return
         }
 
         // !mwd - In the future, it would be cool to resume
@@ -216,25 +265,34 @@ public actor DownloadCacheManager {
             touchFileAccessDate(dest)
 
         } catch {
-            os_log("❌ Download failed %@: %@", log: self.appLog, type: .error, request.songId, error.localizedDescription)
-            print("❌ ========== DOWNLOAD FAILED ==========")
-            print("❌ Song ID: \(request.songId)")
-            print("❌ Remote URL: \(request.remote)")
-            print("❌ Error: \(error)")
-            print("❌ Error Type: \(type(of: error))")
-            
-            if let nsError = error as NSError? {
-                print("❌ NSError Domain: \(nsError.domain)")
-                print("❌ NSError Code: \(nsError.code)")
-                print("❌ NSError UserInfo: \(nsError.userInfo)")
+            // signal end of stream
+            request.streamLoader.signalEndOfStream()
+
+            if error is CancellationError {
+                os_log("Download %@ has been cancelled", log: self.appLog, type: .info, request.songId)
+            } else {
+                os_log("❌ Download failed %@: %@", log: self.appLog, type: .error, request.songId, error.localizedDescription)
+
+                os_log("❌ ========== DOWNLOAD FAILED ==========", log: self.appLog, type: .debug)
+                os_log("❌ Song ID: %@", log: self.appLog, type: .debug, request.songId)
+                os_log("❌ Remote URL: %@", log: self.appLog, type: .debug, request.remote as CVarArg)
+                os_log("❌ Error: %@", log: self.appLog, type: .debug, String(describing: error))
+                os_log("❌ Error Type: %@", log: self.appLog, type: .debug, String(reflecting: type(of: error)))
+                
+                if let nsError = error as NSError? {
+                    os_log("❌ NSError Domain: %@", log: self.appLog, type: .debug, nsError.domain)
+                    os_log("❌ NSError Code: %d", log: self.appLog, type: .debug, nsError.code as CVarArg)
+                    os_log("❌ NSError UserInfo: %@", log: self.appLog, type: .debug, nsError.userInfo)
+                }
+                
+                if let urlError = error as? URLError {
+                    os_log("❌ URLError Code: %d", log: self.appLog, type: .debug, urlError.code.rawValue)
+                    os_log("❌ URLError LocalizedDescription: %@", log: self.appLog, type: .debug, urlError.localizedDescription)
+                    os_log("❌ URLError FailingURL: %@", log: self.appLog, type: .debug, urlError.failingURL?.absoluteString ?? "nil")
+                }
+                
+                os_log("❌ ====================================", log: self.appLog, type: .debug)
             }
-            
-            if let urlError = error as? URLError {
-                print("❌ URLError Code: \(urlError.code)")
-                print("❌ URLError LocalizedDescription: \(urlError.localizedDescription)")
-                print("❌ URLError FailingURL: \(urlError.failingURL?.absoluteString ?? "nil")")
-            }
-            print("❌ ====================================")
         }
 
         finishDownload(request: request)
@@ -246,6 +304,9 @@ public actor DownloadCacheManager {
         if let index = self.active.firstIndex(where: { $0.songId == request.songId }) {
             self.active.remove(at: index)
         }
+        // also remove the task
+        self.activeTasks.removeValue(forKey: request.songId)
+        
         scheduleWorkIfNeeded()
     }
 
@@ -340,10 +401,12 @@ public actor DownloadCacheManager {
     // MARK: Eviction
     private func pruneIfNeeded(force: Bool) async {
         let (total, files) = folderSizeAndFiles()
+        os_log("Pruning cache %d, total=%d of %d, files=%d", log: self.appLog, type: .debug, force, total, sizeLimit, files.count)
         guard force || total > sizeLimit else { return }
 
         var bytesToFree = total > sizeLimit ? total - sizeLimit : 0
         for stat in files where bytesToFree > 0 {
+            os_log("Deleting %@ from cache", log: self.appLog, type: .debug, stat.url.absoluteString)
             try? FileManager.default.removeItem(at: stat.url)
             try? FileManager.default.removeItem(at: metaURL(for: stat.url))
             bytesToFree = bytesToFree > stat.size ? bytesToFree - stat.size : 0

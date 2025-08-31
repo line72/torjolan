@@ -161,8 +161,8 @@ class AudioPlayer: NSObject, ObservableObject {
         let song = Song(from: stationResponse.track)
 
         do {
-            let streamLoader = await DownloadCacheManager.shared.queue(
-              songId: song.id,
+            let streamLoader = await DownloadCacheManager.shared.queueFirst(
+              song: song,
               url: URL(string: stationResponse.track.url)!
             )
             
@@ -201,8 +201,8 @@ class AudioPlayer: NSObject, ObservableObject {
                 // Queue up and start playing the first song in the response
                 let firstStream = streamResponseList.tracks[0]
                 let song = Song(from: firstStream)
-                let streamLoader = await DownloadCacheManager.shared.queue(
-                    songId: song.id,
+                let streamLoader = await DownloadCacheManager.shared.queueFirst(
+                    song: song,
                     url: URL(string: firstStream.url)!
                 )
 
@@ -218,7 +218,7 @@ class AudioPlayer: NSObject, ObservableObject {
                 for stream in streamResponseList.tracks.dropFirst() {
                     let song2 = Song(from: stream)
                     let _ = await DownloadCacheManager.shared.queue(
-                      songId: song2.id,
+                      song: song2,
                       url: URL(string: stream.url)!
                     )
                 }
@@ -256,8 +256,8 @@ class AudioPlayer: NSObject, ObservableObject {
                 // Queue up and start playing the first song in the response
                 let firstStream = streamResponseList.tracks[0]
                 let song = Song(from: firstStream)
-                let streamLoader = await DownloadCacheManager.shared.queue(
-                    songId: song.id,
+                let streamLoader = await DownloadCacheManager.shared.queueFirst(
+                    song: song,
                     url: URL(string: firstStream.url)!
                 )
 
@@ -274,7 +274,7 @@ class AudioPlayer: NSObject, ObservableObject {
                 for stream in streamResponseList.tracks.dropFirst() {
                     let song2 = Song(from: stream)
                     let _ = await DownloadCacheManager.shared.queue(
-                      songId: song2.id,
+                      song: song2,
                       url: URL(string: stream.url)!
                     )
                 }
@@ -380,58 +380,59 @@ class AudioPlayer: NSObject, ObservableObject {
     }
 
     private func logDetailedPlayerError(playerItem: AVPlayerItem?, song: Song) {
-        print("❌ ========== PLAYER ITEM FAILED ==========")
-        print("❌ Song ID: \(song.id)")
-        print("❌ Song Title: \(song.title)")
-        print("❌ Song Artist: \(song.artist)")
+        os_log("❌ ========== PLAYER ITEM FAILED ==========", log: self.appLog, type: .error)
+        os_log("❌ Song ID: %@", log: self.appLog, type: .error, song.id)
+        os_log("❌ Song Title: %@", log: self.appLog, type: .error, song.title)
+        os_log("❌ Song Artist: %@", log: self.appLog, type: .error, song.artist)
         
         if let error = playerItem?.error {
-            print("❌ Primary Error: \(error.localizedDescription)")
+            os_log("❌ Primary Error: %@", log: self.appLog, type: .error, error.localizedDescription)
             
             if let nsError = error as NSError? {
-                print("❌ Error Code: \(nsError.code)")
-                print("❌ Error Domain: \(nsError.domain)")
+                os_log("❌ Error Code: %d", log: self.appLog, type: .error, nsError.code as CVarArg)
+                os_log("❌ Error Domain: %@", log: self.appLog, type: .error, nsError.domain)
             }
             
             // Check for underlying errors
             if let nsError = error as NSError? {
-                print("❌ NSError Code: \(nsError.code)")
-                print("❌ NSError Domain: \(nsError.domain)")
-                print("❌ NSError UserInfo: \(nsError.userInfo)")
+                os_log("❌ NSError Code: %d", log: self.appLog, type: .error, nsError.code as CVarArg)
+                os_log("❌ NSError Domain: %@", log: self.appLog, type: .error, nsError.domain)
+                os_log("❌ NSError UserInfo: %@", log: self.appLog, type: .error, nsError.userInfo)
                 
                 // Check for underlying error in userInfo
                 if let underlyingError = nsError.userInfo[NSUnderlyingErrorKey] as? NSError {
-                    print("❌ Underlying Error: \(underlyingError.localizedDescription)")
-                    print("❌ Underlying Error Code: \(underlyingError.code)")
-                    print("❌ Underlying Error Domain: \(underlyingError.domain)")
-                    print("❌ Underlying Error UserInfo: \(underlyingError.userInfo)")
+                    os_log("❌ Underlying Error: %@", log: self.appLog, type: .error, underlyingError.localizedDescription)
+                    os_log("❌ Underlying Error Code: %d", log: self.appLog, type: .error, underlyingError.code as CVarArg)
+                    os_log("❌ Underlying Error Domain: %@", log: self.appLog, type: .error, underlyingError.domain)
+                    os_log("❌ Underlying Error UserInfo: %@", log: self.appLog, type: .error, underlyingError.userInfo)
                 }
                 
                 // Check for OSStatus errors (common in AVFoundation)
                 if nsError.domain == NSOSStatusErrorDomain {
                     let osStatus = OSStatus(nsError.code)
-                    print("❌ OSStatus: \(osStatus) (\(fourCharCodeFromOSStatus(osStatus)))")
+                    os_log("❌ OSStatus: %d %@", log: self.appLog, type: .error,
+                           nsError.code as CVarArg, fourCharCodeFromOSStatus(osStatus))
                 }
             }
         } else {
-            print("❌ No error object available")
+            os_log("❌ No error object available", log: self.appLog, type: .error)
         }
         
         // Check asset information
         if let asset = playerItem?.asset {
             // Check if it's an AVURLAsset first to get URL
             if let urlAsset = asset as? AVURLAsset {
-                print("❌ AVURLAsset URL: \(urlAsset.url)")
-                print("❌ AVURLAsset ResourceLoader: \(urlAsset.resourceLoader)")
+                os_log("❌ AVURLAsset URL: %@", log: self.appLog, type: .error, urlAsset.url.absoluteString)
+                os_log("❌ AVURLAsset ResourceLoader: %@", log: self.appLog, type: .error, urlAsset.resourceLoader)
                 
                 // Check if resource loader has a delegate
                 if urlAsset.resourceLoader.delegate != nil {
-                    print("❌ ResourceLoader has delegate: YES")
+                    os_log("❌ ResourceLoader has delegate: YES", log: self.appLog, type: .error)
                 } else {
-                    print("❌ ResourceLoader has delegate: NO")
+                    os_log("❌ ResourceLoader has delegate: NO", log: self.appLog, type: .error)
                 }
             } else {
-                print("❌ Asset is not AVURLAsset: \(type(of: asset))")
+                os_log("❌ Asset is not AVURLAsset: %@", log: self.appLog, type: .error, String(reflecting: type(of: asset)))
             }
             
             // Use async loading for modern iOS versions to avoid deprecation warnings
@@ -443,32 +444,35 @@ class AudioPlayer: NSObject, ObservableObject {
                     let isExportable = try await asset.load(.isExportable)
                     let isComposable = try await asset.load(.isComposable)
                     
-                    print("❌ Asset Duration: \(duration)")
-                    print("❌ Asset Playable: \(isPlayable)")
-                    print("❌ Asset Readable: \(isReadable)")
-                    print("❌ Asset Exportable: \(isExportable)")
-                    print("❌ Asset Composable: \(isComposable)")
+                    os_log("❌ Asset Duration: %d", log: self.appLog, type: .error, CMTimeGetSeconds(duration))
+                    os_log("❌ Asset Playable: %d", log: self.appLog, type: .error, isPlayable)
+                    os_log("❌ Asset Readable: %d", log: self.appLog, type: .error, isReadable)
+                    os_log("❌ Asset Exportable: %d", log: self.appLog, type: .error, isExportable)
+                    os_log("❌ Asset Composable: %d", log: self.appLog, type: .error, isComposable)
                 } catch {
-                    print("❌ Failed to load asset properties: \(error)")
+                    os_log("❌ Failed to load asset properties: %@", log: self.appLog, type: .error, String(describing: error))
                 }
             }
         }
         
         // Check player item tracks
         if let tracks = playerItem?.tracks {
-            print("❌ Player Item Tracks Count: \(tracks.count)")
+            os_log("❌ Player Item Tracks Count: %d", log: self.appLog, type: .error, tracks.count)
             for (index, track) in tracks.enumerated() {
-                print("❌ Track \(index): enabled=\(track.isEnabled), asset track=\(track.assetTrack?.mediaType.rawValue ?? "nil")")
+                os_log("❌ Track %d: enabled=%d, asset track=%@",
+                       log: self.appLog, type: .error,
+                       index, track.isEnabled, track.assetTrack?.mediaType.rawValue ?? "nil"
+                )
             }
         }
         
         // Check audio session
         let audioSession = AVAudioSession.sharedInstance()
-        print("❌ Audio Session Category: \(audioSession.category.rawValue)")
-        print("❌ Audio Session Active: \(audioSession.isOtherAudioPlaying)")
-        print("❌ Audio Session Route: \(audioSession.currentRoute)")
+        os_log("❌ Audio Session Category: %@", log: self.appLog, type: .error, audioSession.category.rawValue)
+        os_log("❌ Audio Session Active: %d", log: self.appLog, type: .error, audioSession.isOtherAudioPlaying)
+        os_log("❌ Audio Session Route: %@", log: self.appLog, type: .error, audioSession.currentRoute)
         
-        print("❌ ========================================")
+        os_log("❌ ========================================", log: self.appLog, type: .error)
     }
     
     private func fourCharCodeFromOSStatus(_ status: OSStatus) -> String {
@@ -670,6 +674,10 @@ struct PlayerView: View {
             audioPlayer.stop()
             // Start playing next song
             audioPlayer.startPlayingStation(station)
+
+            // cancel the download of the existing (if still working)
+            //  to make sure the next in line starts
+            await DownloadCacheManager.shared.cancel(songId: song.id)
         }
     }
 
